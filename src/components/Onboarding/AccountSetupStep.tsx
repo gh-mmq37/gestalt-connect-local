@@ -1,7 +1,6 @@
-
 import React, { useState } from "react";
 import { ArrowRight, Key, Shield, Info, ExternalLink } from "lucide-react";
-import { generatePrivateKey, getPublicKey } from 'nostr-tools';
+import * as nostrTools from 'nostr-tools';
 
 interface AccountSetupStepProps {
   onNext: (data: { accountType: string; nostrKeys: any }) => void;
@@ -17,13 +16,18 @@ export const AccountSetupStep: React.FC<AccountSetupStepProps> = ({ onNext }) =>
   
   // Generate Nostr keys for simple setup
   const generateNostrKeys = () => {
-    const privateKey = generatePrivateKey();
-    const publicKey = getPublicKey(privateKey);
-    
-    setGeneratedKeys({
-      privateKey,
-      publicKey
-    });
+    try {
+      const privateKey = nostrTools.generatePrivateKey();
+      const privateKeyHex = typeof privateKey === 'string' ? privateKey : nostrTools.bytesToHex(privateKey);
+      const publicKey = nostrTools.getPublicKey(privateKeyHex);
+      
+      setGeneratedKeys({
+        privateKey: privateKeyHex,
+        publicKey
+      });
+    } catch (error) {
+      console.error("Error generating Nostr keys:", error);
+    }
   };
   
   // Handle importing existing private key
@@ -38,8 +42,7 @@ export const AccountSetupStep: React.FC<AccountSetupStepProps> = ({ onNext }) =>
         ? importedPrivateKey 
         : importedPrivateKey;
         
-      // In a real app, we'd validate the key format properly
-      const publicKey = getPublicKey(normalizedKey);
+      const publicKey = nostrTools.getPublicKey(normalizedKey);
       
       setGeneratedKeys({
         privateKey: normalizedKey,
@@ -57,7 +60,6 @@ export const AccountSetupStep: React.FC<AccountSetupStepProps> = ({ onNext }) =>
   const handleContinue = () => {
     setIsLoading(true);
     
-    // Proceed based on account type and key availability
     setTimeout(() => {
       onNext({
         accountType,
