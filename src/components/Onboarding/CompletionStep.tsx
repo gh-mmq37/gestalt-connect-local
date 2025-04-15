@@ -9,6 +9,10 @@ interface CompletionStepProps {
 }
 
 export const CompletionStep: React.FC<CompletionStepProps> = ({ onboardingData, onComplete }) => {
+  // Extract data to show user summary
+  const { nostrKeys, community } = onboardingData;
+  const publicKey = nostrKeys?.publicKey ? nostrKeys.publicKey.substring(0, 8) + '...' : 'Not set';
+
   return (
     <div className="space-y-6 animate-fade-in text-center">
       <div className="flex justify-center">
@@ -24,6 +28,16 @@ export const CompletionStep: React.FC<CompletionStepProps> = ({ onboardingData, 
         <p className="text-gray-600">
           Welcome to Gestalt. Your local-first, privacy-respecting community platform is ready to go.
         </p>
+      </div>
+      
+      {/* Show summary of key setup */}
+      <div className="py-3 px-4 bg-gestalt-purple/5 rounded-lg border border-gestalt-purple/20 text-left">
+        <h3 className="text-sm font-medium text-gray-900 mb-1">Your Account Summary</h3>
+        <div className="text-xs text-gray-600 space-y-1">
+          <p>Public Key: <span className="font-mono">{publicKey}</span></p>
+          <p>Community Level: {community || 'Neighborhood'}</p>
+          <p>Setup complete and ready to use!</p>
+        </div>
       </div>
       
       <div className="py-2">
@@ -73,13 +87,12 @@ export const CompletionStep: React.FC<CompletionStepProps> = ({ onboardingData, 
       </div>
       
       <div className="pt-4">
-        <Link
-          to="/"
+        <button
           onClick={onComplete}
           className="w-full inline-block py-3 px-4 border border-transparent rounded-md shadow-sm text-white bg-gestalt-purple hover:bg-gestalt-purple-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gestalt-purple transition-colors"
         >
           Get Started
-        </Link>
+        </button>
       </div>
     </div>
   );

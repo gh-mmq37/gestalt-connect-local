@@ -21,18 +21,16 @@ export const AccountSetupStep: React.FC<AccountSetupStepProps> = ({ onNext }) =>
       // Generate a new secret key (private key)
       const secretKey = generateSecretKey();
       
-      // Convert the private key to hex format
-      const privateKeyHex = Buffer.from(secretKey).toString('hex');
-      
       // Get the public key from the secret key
       const publicKey = getPublicKey(secretKey);
       
-      // Optionally encode as nsec/npub format
+      // Encode as nsec/npub format
       const nsec = nip19.nsecEncode(secretKey);
+      const npub = nip19.npubEncode(publicKey);
       
       setGeneratedKeys({
-        privateKey: nsec, // or privateKeyHex if you prefer hex format
-        publicKey
+        privateKey: nsec,
+        publicKey: npub
       });
     } catch (error) {
       console.error("Error generating Nostr keys:", error);
@@ -48,12 +46,16 @@ export const AccountSetupStep: React.FC<AccountSetupStepProps> = ({ onNext }) =>
       }
       
       let secretKey: Uint8Array;
+      let publicKey: string;
+      let npub: string;
       
       // Handle different key formats (nsec or hex)
       if (importedPrivateKey.startsWith('nsec1')) {
         try {
           const { data } = nip19.decode(importedPrivateKey);
           secretKey = data as Uint8Array;
+          publicKey = getPublicKey(secretKey);
+          npub = nip19.npubEncode(publicKey);
         } catch (e) {
           throw new Error("Invalid nsec format");
         }
@@ -61,17 +63,16 @@ export const AccountSetupStep: React.FC<AccountSetupStepProps> = ({ onNext }) =>
         // Assume hex format
         try {
           secretKey = new Uint8Array(Buffer.from(importedPrivateKey, 'hex'));
+          publicKey = getPublicKey(secretKey);
+          npub = nip19.npubEncode(publicKey);
         } catch (e) {
           throw new Error("Invalid hex format");
         }
       }
       
-      // Get public key from the secret key
-      const publicKey = getPublicKey(secretKey);
-      
       setGeneratedKeys({
         privateKey: importedPrivateKey,
-        publicKey
+        publicKey: npub
       });
       
       setImportError("");

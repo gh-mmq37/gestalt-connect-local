@@ -1,6 +1,6 @@
 
-import React, { useState } from "react";
-import { Navigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Navigate, useNavigate } from "react-router-dom";
 import { OnboardingLayout } from "../components/Onboarding/OnboardingLayout";
 import { WelcomeStep } from "../components/Onboarding/WelcomeStep";
 import { CommunitySelectionStep } from "../components/Onboarding/CommunitySelectionStep";
@@ -11,8 +11,10 @@ import { WellnessPreferencesStep } from "../components/Onboarding/WellnessPrefer
 import { CompletionStep } from "../components/Onboarding/CompletionStep";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import { Check } from "lucide-react";
+import { toast } from "@/components/ui/use-toast";
 
 export const Onboarding: React.FC = () => {
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(0);
   const [onboardingComplete, setOnboardingComplete] = useLocalStorage("onboardingComplete", false);
   const [onboardingData, setOnboardingData] = useLocalStorage("onboardingData", {
@@ -29,9 +31,26 @@ export const Onboarding: React.FC = () => {
   });
 
   // If onboarding is already complete, redirect to home
-  if (onboardingComplete) {
-    return <Navigate to="/" replace />;
-  }
+  useEffect(() => {
+    if (onboardingComplete) {
+      navigate("/", { replace: true });
+    }
+  }, [onboardingComplete, navigate]);
+
+  const handleCompletionStep = () => {
+    // Save all data and mark onboarding as complete
+    setOnboardingComplete(true);
+    
+    // Display success toast
+    toast({
+      title: "Onboarding Complete!",
+      description: "Welcome to Gestalt. Your community awaits!",
+      duration: 5000,
+    });
+    
+    // Navigate to home page
+    navigate("/", { replace: true });
+  };
 
   const steps = [
     {
@@ -98,9 +117,7 @@ export const Onboarding: React.FC = () => {
       component: (
         <CompletionStep
           onboardingData={onboardingData}
-          onComplete={() => {
-            setOnboardingComplete(true);
-          }}
+          onComplete={handleCompletionStep}
         />
       )
     }
