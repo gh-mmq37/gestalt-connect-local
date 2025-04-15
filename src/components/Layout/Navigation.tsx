@@ -13,7 +13,8 @@ import {
 } from "lucide-react";
 
 const navItems = [
-  { name: "Community", path: "/community", icon: Home },
+  { name: "Home", path: "/", icon: Home },
+  { name: "Community", path: "/community", icon: Users },
   { name: "Groups", path: "/groups", icon: Users },
   { name: "Interests", path: "/interests", icon: Bookmark },
   { name: "Explore", path: "/explore", icon: Map },

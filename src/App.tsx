@@ -12,7 +12,14 @@ import { Onboarding } from "./pages/Onboarding";
 import NotFound from "./pages/NotFound";
 import { useLocalStorage } from "./hooks/useLocalStorage";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 const App = () => {
   const [onboardingComplete] = useLocalStorage("onboardingComplete", false);
@@ -24,23 +31,20 @@ const App = () => {
         <Sonner />
         <BrowserRouter>
           <Routes>
-            {/* Redirect to onboarding if not completed */}
-            <Route
-              path="/"
-              element={
-                !onboardingComplete ? (
-                  <Navigate to="/onboarding" replace />
-                ) : (
-                  <MainLayout />
-                )
-              }
-            >
+            {/* Onboarding Route */}
+            <Route path="/onboarding" element={<Onboarding />} />
+            
+            {/* Main App Routes with Layout */}
+            <Route path="/" element={<MainLayout />}>
               <Route index element={<Home />} />
               <Route path="/community" element={<Community />} />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/groups" element={<Community />} /> {/* Placeholder for Groups */}
+              <Route path="/interests" element={<Home />} /> {/* Placeholder for Interests */}
+              <Route path="/explore" element={<Community />} /> {/* Placeholder for Explore */}
+              <Route path="/contribute" element={<Home />} /> {/* Placeholder for Contribute */}
               <Route path="*" element={<NotFound />} />
             </Route>
-            <Route path="/onboarding" element={<Onboarding />} />
           </Routes>
         </BrowserRouter>
       </TooltipProvider>
