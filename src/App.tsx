@@ -5,12 +5,20 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { MainLayout } from "./components/Layout/MainLayout";
-import { Home } from "./pages/Home";
+import { PublicHome } from "./pages/PublicHome";
+import { NostrFeed } from "./pages/NostrFeed";
 import { Community } from "./pages/Community";
 import { Profile } from "./pages/Profile";
+import { Groups } from "./pages/Groups";
+import { Interests } from "./pages/Interests";
+import { Explore } from "./pages/Explore";
+import { Contribute } from "./pages/Contribute";
+import { Settings } from "./pages/Settings";
 import { Onboarding } from "./pages/Onboarding";
 import NotFound from "./pages/NotFound";
 import { useLocalStorage } from "./hooks/useLocalStorage";
+import { NostrProvider } from "./contexts/NostrContext";
+import { Search } from "./pages/Search";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -26,28 +34,39 @@ const App = () => {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            {/* Onboarding Route */}
-            <Route path="/onboarding" element={<Onboarding />} />
-            
-            {/* Main App Routes with Layout */}
-            <Route path="/" element={<MainLayout />}>
-              <Route index element={<Home />} />
-              <Route path="/community" element={<Community />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/groups" element={<Community />} /> {/* Placeholder for Groups */}
-              <Route path="/interests" element={<Home />} /> {/* Placeholder for Interests */}
-              <Route path="/explore" element={<Community />} /> {/* Placeholder for Explore */}
-              <Route path="/contribute" element={<Home />} /> {/* Placeholder for Contribute */}
-              <Route path="*" element={<NotFound />} />
-            </Route>
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
+      <NostrProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              {/* Public Home - Accessible without onboarding */}
+              <Route path="/" element={!onboardingComplete ? <PublicHome /> : <Navigate to="/feed" replace />} />
+              
+              {/* Onboarding Route */}
+              <Route path="/onboarding" element={<Onboarding />} />
+              
+              {/* Authenticated Routes - Require onboarding */}
+              <Route 
+                path="/" 
+                element={onboardingComplete ? <MainLayout /> : <Navigate to="/" replace />}
+              >
+                <Route path="/feed" element={<NostrFeed />} />
+                <Route path="/community" element={<Community />} />
+                <Route path="/groups" element={<Groups />} />
+                <Route path="/interests" element={<Interests />} />
+                <Route path="/explore" element={<Explore />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/profile/:npub" element={<Profile />} />
+                <Route path="/contribute" element={<Contribute />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="/search" element={<Search />} />
+                <Route path="*" element={<NotFound />} />
+              </Route>
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </NostrProvider>
     </QueryClientProvider>
   );
 };
