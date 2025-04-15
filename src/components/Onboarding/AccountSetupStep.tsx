@@ -1,6 +1,7 @@
+
 import React, { useState } from "react";
 import { ArrowRight, Key, Shield, Info, ExternalLink } from "lucide-react";
-import * as nostrTools from 'nostr-tools';
+import { nip19, getPublicKey, generateSecretKey } from 'nostr-tools';
 
 interface AccountSetupStepProps {
   onNext: (data: { accountType: string; nostrKeys: any }) => void;
@@ -17,12 +18,20 @@ export const AccountSetupStep: React.FC<AccountSetupStepProps> = ({ onNext }) =>
   // Generate Nostr keys for simple setup
   const generateNostrKeys = () => {
     try {
-      const privateKey = nostrTools.generatePrivateKey();
-      const privateKeyHex = typeof privateKey === 'string' ? privateKey : nostrTools.bytesToHex(privateKey);
-      const publicKey = nostrTools.getPublicKey(privateKeyHex);
+      // Generate a new secret key (private key)
+      const secretKey = generateSecretKey();
+      
+      // Convert the private key to hex format
+      const privateKeyHex = Buffer.from(secretKey).toString('hex');
+      
+      // Get the public key from the secret key
+      const publicKey = getPublicKey(secretKey);
+      
+      // Optionally encode as nsec/npub format
+      const nsec = nip19.nsecEncode(secretKey);
       
       setGeneratedKeys({
-        privateKey: privateKeyHex,
+        privateKey: nsec, // or privateKeyHex if you prefer hex format
         publicKey
       });
     } catch (error) {
@@ -38,14 +47,30 @@ export const AccountSetupStep: React.FC<AccountSetupStepProps> = ({ onNext }) =>
         return;
       }
       
-      const normalizedKey = importedPrivateKey.startsWith('nsec1') 
-        ? importedPrivateKey 
-        : importedPrivateKey;
-        
-      const publicKey = nostrTools.getPublicKey(normalizedKey);
+      let secretKey: Uint8Array;
+      
+      // Handle different key formats (nsec or hex)
+      if (importedPrivateKey.startsWith('nsec1')) {
+        try {
+          const { data } = nip19.decode(importedPrivateKey);
+          secretKey = data as Uint8Array;
+        } catch (e) {
+          throw new Error("Invalid nsec format");
+        }
+      } else {
+        // Assume hex format
+        try {
+          secretKey = new Uint8Array(Buffer.from(importedPrivateKey, 'hex'));
+        } catch (e) {
+          throw new Error("Invalid hex format");
+        }
+      }
+      
+      // Get public key from the secret key
+      const publicKey = getPublicKey(secretKey);
       
       setGeneratedKeys({
-        privateKey: normalizedKey,
+        privateKey: importedPrivateKey,
         publicKey
       });
       
