@@ -56,8 +56,8 @@ export const NostrFeed: React.FC = () => {
             filter.authors = [customFeed.value];
           }
           
-          // Use the correct method for SimplePool
-          const events = await pool.querySync(relays, [filter]);
+          // Use querySync instead of querySync, which accepts a single filter
+          const events = await pool.querySync(relays, filter);
           const sortedEvents = events.sort((a, b) => b.created_at - a.created_at);
           setPosts(sortedEvents);
         }
