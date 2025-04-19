@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNostr } from "../hooks/useNostr";
 import { Event } from "nostr-tools";
@@ -22,7 +21,6 @@ export const Search: React.FC = () => {
     loading: false,
   });
 
-  // Extract query from URL if present
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
     const q = searchParams.get('q');
@@ -38,25 +36,20 @@ export const Search: React.FC = () => {
     setResults(prev => ({ ...prev, loading: true }));
     
     try {
-      // Search for posts that contain the query in content
-      const postResults = await pool.list(relays, [{
+      const postResults = await pool.querySync(relays, [{
         kinds: [1],
         limit: 40,
-        // This is a very basic search - in a real app you might want to use specialized search relays
       }]);
       
-      // Filter posts client-side for the search term
       const filteredPosts = postResults.filter(event => 
         event.content.toLowerCase().includes(searchQuery.toLowerCase())
       );
       
-      // Search for profiles
-      const profileResults = await pool.list(relays, [{
+      const profileResults = await pool.querySync(relays, [{
         kinds: [0],
         limit: 20,
       }]);
       
-      // Filter profiles client-side
       const filteredProfiles = profileResults.filter(event => {
         try {
           const profile = JSON.parse(event.content);

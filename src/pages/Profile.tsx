@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useNostr } from "../hooks/useNostr";
@@ -42,11 +41,9 @@ export const Profile: React.FC = () => {
   const [posts, setPosts] = useState<Event[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(false);
   
-  // Decode npub or use current user's pubkey
   useEffect(() => {
     const initProfile = async () => {
       try {
-        // If npub is provided, decode it, otherwise use current user's pubkey
         if (npub) {
           const { type, data } = nip19.decode(npub);
           if (type === 'npub') {
@@ -70,7 +67,6 @@ export const Profile: React.FC = () => {
     initProfile();
   }, [npub, keys]);
   
-  // Check if following and fetch profile data
   useEffect(() => {
     if (targetPubkey) {
       setIsFollowing(userFollows.includes(targetPubkey));
@@ -85,7 +81,7 @@ export const Profile: React.FC = () => {
     setLoadingPosts(true);
     
     try {
-      const events = await pool.list(relays, [
+      const events = await pool.querySync(relays, [
         {
           kinds: [1],
           authors: [targetPubkey],
@@ -93,7 +89,6 @@ export const Profile: React.FC = () => {
         },
       ]);
       
-      // Sort by created_at in descending order (newest first)
       const sortedEvents = events.sort((a, b) => b.created_at - a.created_at);
       setPosts(sortedEvents);
     } catch (error) {
@@ -131,7 +126,6 @@ export const Profile: React.FC = () => {
     if (!isUserProfile || !keys) return;
     
     try {
-      // Example: Navigate to a profile edit form
       toast({
         title: "Coming Soon",
         description: "Profile editing will be available soon!",
@@ -141,9 +135,7 @@ export const Profile: React.FC = () => {
     }
   };
   
-  // Format created_at timestamp for display
   const getJoinedDate = () => {
-    // Look for the earliest event to estimate the "joined" date
     if (posts.length) {
       const earliestPost = [...posts].sort((a, b) => a.created_at - b.created_at)[0];
       return format(new Date(earliestPost.created_at * 1000), "MMMM yyyy");
@@ -163,7 +155,6 @@ export const Profile: React.FC = () => {
     <div className="max-w-4xl mx-auto">
       {targetPubkey ? (
         <div className="bg-white rounded-lg shadow overflow-hidden">
-          {/* Profile Header */}
           <div className="bg-gestalt-purple/10 p-6">
             <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
               <div className="w-24 h-24 rounded-full bg-gestalt-purple flex items-center justify-center text-white text-2xl font-bold overflow-hidden">
@@ -250,7 +241,6 @@ export const Profile: React.FC = () => {
             </div>
           </div>
 
-          {/* Tabs */}
           <div className="border-b">
             <nav className="-mb-px flex">
               <button
@@ -278,7 +268,6 @@ export const Profile: React.FC = () => {
             </nav>
           </div>
 
-          {/* Tab Content */}
           <div className="p-6">
             {isUserProfile && activeTab === "posts" && (
               <CreatePost onPostCreated={fetchUserPosts} />

@@ -26,20 +26,20 @@ export const Explore: React.FC = () => {
       switch (activeTab) {
         case "trending":
           // In a real app, would use a specialized trending algorithm
-          events = await pool.list(relays, [{
+          events = await pool.querySync(relays, [{
             kinds: [1],
             limit: 30,
           }]);
           break;
         case "global":
-          events = await pool.list(relays, [{
+          events = await pool.querySync(relays, [{
             kinds: [1],
             limit: 30,
           }]);
           break;
         case "local":
           // In a real app, would filter by location tags
-          events = await pool.list(relays, [{
+          events = await pool.querySync(relays, [{
             kinds: [1],
             limit: 30,
             "#t": ["local"]

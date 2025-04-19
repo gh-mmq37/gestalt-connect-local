@@ -1,6 +1,6 @@
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { SimplePool, Event, Filter, Sub } from "nostr-tools";
+import React, { createContext, useState, useEffect, ReactNode } from "react";
+import { SimplePool, Event, Filter } from "nostr-tools";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 
 // Default relays
@@ -19,6 +19,15 @@ interface NostrKeys {
   nsec: string;
 }
 
+// Define the type for subscription returned from pool.sub()
+type Subscription = {
+  sub: {
+    unsub: () => void;
+  };
+  on: (event: string, callback: (event: Event) => void) => void;
+  off: (event: string, callback: (event: Event) => void) => void;
+};
+
 interface NostrContextType {
   pool: SimplePool | null;
   relays: string[];
@@ -26,7 +35,7 @@ interface NostrContextType {
   removeRelay: (relay: string) => void;
   keys: NostrKeys | null;
   publishEvent: (event: Partial<Event>) => Promise<Event | null>;
-  subscribeToEvents: (filters: Filter[], onEvent: (event: Event) => void) => Sub | null;
+  subscribeToEvents: (filters: Filter[], onEvent: (event: Event) => void) => Subscription | null;
   getProfileEvents: (pubkeys: string[]) => Promise<Event[]>;
   getPostEvents: (limit?: number) => Promise<Event[]>;
   getEvent: (id: string) => Promise<Event | null>;
@@ -40,14 +49,6 @@ interface NostrContextType {
 }
 
 export const NostrContext = createContext<NostrContextType | null>(null);
-
-export const useNostr = () => {
-  const context = useContext(NostrContext);
-  if (!context) {
-    throw new Error("useNostr must be used within a NostrProvider");
-  }
-  return context;
-};
 
 interface NostrProviderProps {
   children: ReactNode;
@@ -103,7 +104,8 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     if (!pool || !keys?.privateKey) return null;
 
     try {
-      const event = await pool.publish(relays, eventData, keys.privateKey);
+      // SimplePool.publish expects (relays, eventTemplate, privateKey)
+      const event = await pool.publish(relays, eventData as any, keys.privateKey);
       return event;
     } catch (error) {
       console.error("Failed to publish event:", error);
@@ -111,10 +113,11 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     }
   };
 
-  const subscribeToEvents = (filters: Filter[], onEvent: (event: Event) => void): Sub | null => {
+  const subscribeToEvents = (filters: Filter[], onEvent: (event: Event) => void): Subscription | null => {
     if (!pool) return null;
 
     try {
+      // Using the sub method from SimplePool
       const sub = pool.sub(relays, filters);
       sub.on('event', onEvent);
       return sub;
@@ -128,7 +131,8 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     if (!pool) return [];
 
     try {
-      return await pool.list(relays, [
+      // Using Query API for profile events
+      return await pool.querySync(relays, [
         {
           kinds: [0],
           authors: pubkeys,
@@ -150,7 +154,7 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
       // If not following anyone, just get recent global posts
       const authors = following.length ? following : undefined;
       
-      return await pool.list(relays, [
+      return await pool.querySync(relays, [
         {
           kinds: [1],
           authors,
@@ -167,7 +171,7 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     if (!pool) return null;
 
     try {
-      const events = await pool.list(relays, [{ ids: [id] }]);
+      const events = await pool.querySync(relays, [{ ids: [id] }]);
       return events.length > 0 ? events[0] : null;
     } catch (error) {
       console.error("Failed to get event:", error);
@@ -179,7 +183,7 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     if (!pool || !keys?.publicKey) return [];
 
     try {
-      const events = await pool.list(relays, [
+      const events = await pool.querySync(relays, [
         {
           kinds: [3],
           authors: [keys.publicKey],
