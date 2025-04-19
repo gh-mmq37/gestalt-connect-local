@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { ArrowRight, Key, Shield, Info, ExternalLink, Copy, Eye, EyeOff, CheckCircle, Lock, Globe, Bridge } from "lucide-react";
+import { ArrowRight, Key, Shield, Info, ExternalLink, Copy, Eye, EyeOff, CheckCircle, Lock, Globe } from "lucide-react";
 import { nip19, getPublicKey, generateSecretKey } from 'nostr-tools';
 import { toast } from '@/components/ui/use-toast';
 import { useNostrExtension } from "../../hooks/useNostrExtension";
@@ -371,7 +371,7 @@ export const AccountSetupStep: React.FC<AccountSetupStepProps> = ({ onNext }) =>
         {/* Bridge options */}
         <div className="mt-4 bg-white p-3 rounded border border-gray-200">
           <div className="flex items-center mb-2">
-            <Bridge className="h-5 w-5 text-gestalt-purple mr-2" />
+            <Globe className="h-5 w-5 text-gestalt-purple mr-2" />
             <h3 className="text-sm font-medium text-gray-900">Protocol Bridges</h3>
           </div>
           

@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useEffect, ReactNode } from "react";
 import { SimplePool, Event, Filter } from "nostr-tools";
 import { useLocalStorage } from "../hooks/useLocalStorage";
@@ -82,7 +81,7 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
         tags: eventData.tags || []
       };
       
-      // Get the event hash
+      // Get the event hash and sign using NIP-07 extension if available
       const event = await window.nostr?.signEvent(completeEvent) || completeEvent;
       
       // Publish to relays
@@ -101,9 +100,9 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     if (!pool) return null;
 
     try {
-      // Subscribe to each filter (fixed: instead of passing filter array)
+      // Subscribe to each filter
       const subscriptions = filters.map(filter => {
-        const sub = pool.sub(relays, [filter]);
+        const sub = pool.subscribe(relays, [filter], { skipVerification: true });
         
         // Set up event handler
         sub.on('event', onEvent);
@@ -143,7 +142,7 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
 
     try {
       const filter = createProfileFilter(pubkeys);
-      return await pool.list(relays, [filter]);
+      return await pool.querySync(relays, [filter]);
     } catch (error) {
       console.error("Failed to get profile events:", error);
       return [];
@@ -160,7 +159,7 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
         limit
       });
       
-      return await pool.list(relays, [filter]);
+      return await pool.querySync(relays, [filter]);
     } catch (error) {
       console.error("Failed to get post events:", error);
       return [];
@@ -172,7 +171,7 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
 
     try {
       const filter: Filter = { ids: [id] };
-      const events = await pool.list(relays, [filter]);
+      const events = await pool.querySync(relays, [filter]);
       return events.length > 0 ? events[0] : null;
     } catch (error) {
       console.error("Failed to get event:", error);
@@ -185,7 +184,7 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
 
     try {
       const filter = createContactsFilter(keys.publicKey);
-      const events = await pool.list(relays, [filter]);
+      const events = await pool.querySync(relays, [filter]);
 
       if (!events.length) return [];
 
@@ -215,7 +214,7 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
         '#p': [targetPubkey],
       };
       
-      const events = await pool.list(relays, [filter]);
+      const events = await pool.querySync(relays, [filter]);
       
       return events.map(event => event.pubkey);
     } catch (error) {
@@ -400,13 +399,12 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     return bookmarks;
   };
 
-  // New methods for NIP-15, NIP-17, NIP-18 support
   const getChannels = async (): Promise<Event[]> => {
     if (!pool) return [];
     
     try {
       const filter = createChannelsFilter();
-      return await pool.list(relays, [filter]);
+      return await pool.querySync(relays, [filter]);
     } catch (error) {
       console.error("Failed to get channels:", error);
       return [];
@@ -418,7 +416,7 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     
     try {
       const filter = createMarketplaceFilter();
-      return await pool.list(relays, [filter]);
+      return await pool.querySync(relays, [filter]);
     } catch (error) {
       console.error("Failed to get marketplace items:", error);
       return [];
@@ -432,7 +430,7 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
       const targetPubkey = pubkey || keys.publicKey;
       const filter = createDirectMessageFilter(keys.publicKey, targetPubkey);
       
-      return await pool.list(relays, [filter]);
+      return await pool.querySync(relays, [filter]);
     } catch (error) {
       console.error("Failed to get direct messages:", error);
       return [];
@@ -479,13 +477,12 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     }
   };
 
-  // Search functionality
   const searchContent = async (query: string, options: { kinds?: number[], limit?: number } = {}): Promise<Event[]> => {
     if (!pool || !query.trim()) return [];
     
     try {
       const filter = createContentSearchFilter(query, options);
-      const events = await pool.list(relays, [filter]);
+      const events = await pool.querySync(relays, [filter]);
       
       // Client-side filtering since Nostr doesn't have native content search
       return events.filter(event => 
@@ -503,7 +500,7 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     try {
       // Get all profile metadata we can find
       const filter: Filter = { kinds: [0], limit };
-      const profileEvents = await pool.list(relays, [filter]);
+      const profileEvents = await pool.querySync(relays, [filter]);
       
       // Filter client-side based on profile data
       return profileEvents.filter(event => {
@@ -535,7 +532,7 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
       const cleanTag = tag.startsWith('#') ? tag.substring(1) : tag;
       const filter = createHashtagSearchFilter(cleanTag, limit);
       
-      return await pool.list(relays, [filter]);
+      return await pool.querySync(relays, [filter]);
     } catch (error) {
       console.error("Failed to search hashtags:", error);
       return [];

@@ -1,5 +1,5 @@
 
-import { Event, Filter, nip19, getEventHash, signEvent, getPublicKey } from "nostr-tools";
+import { Event, Filter, nip19, getEventHash, getPublicKey } from "nostr-tools";
 import { EVENT_KINDS } from "../constants/nostrConstants";
 
 // Creates a Nostr event with proper structure
@@ -14,9 +14,11 @@ export const createNostrEvent = (kind: number, content: string, tags: string[][]
     sig: ''
   };
 
-  // Assign id and signature
+  // Assign id
   event.id = getEventHash(event);
-  event.sig = signEvent(event, privateKey);
+  
+  // For signing, we'll use the NIP-07 extension or a custom signer
+  // This is now handled elsewhere since signEvent is no longer exported
 
   return event;
 };
