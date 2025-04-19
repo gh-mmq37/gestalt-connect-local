@@ -65,25 +65,21 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
   const [bookmarks, setBookmarks] = useLocalStorage("nostrBookmarks", { public: [], private: [] });
   const [profileDataFetched, setProfileDataFetched] = useState<Set<string>>(new Set());
 
-  // Initialize the pool and keys
   useEffect(() => {
     const newPool = new SimplePool();
     setPool(newPool);
 
-    // Clean up on unmount
     return () => {
       newPool.close(relays);
     };
   }, []);
 
-  // Set keys when onboarding data changes
   useEffect(() => {
     if (onboardingData?.nostrKeys) {
       setKeys(onboardingData.nostrKeys);
     }
   }, [onboardingData]);
 
-  // Refresh user's follows when keys change
   useEffect(() => {
     if (keys?.publicKey) {
       refreshFollows();
@@ -107,7 +103,6 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     if (!pool || !keys?.privateKey) return null;
 
     try {
-      // Create a complete event with required fields
       const completeEvent: Event = {
         ...eventData as any,
         pubkey: keys.publicKey,
@@ -119,10 +114,8 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
         tags: eventData.tags || []
       };
       
-      // Publish event to relays
       const pub = pool.publish(relays, completeEvent);
       
-      // Wait for at least one relay to confirm
       await Promise.race(pub);
       
       return completeEvent;
@@ -136,19 +129,42 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     if (!pool) return null;
 
     try {
-      // Create subscription handlers
-      const subscription = pool.subscribe(relays, filters);
+      const sub = pool.subscribe(relays, filters, { skipVerification: false });
       
-      // Set up event handler
-      subscription.on('event', onEvent);
+      const eventHandler = (event: Event) => {
+        onEvent(event);
+      };
       
-      // Return a unified subscription object
+      const relayEventListeners: Array<() => void> = [];
+      
+      pool.relays.forEach(relay => {
+        if (relay.status === 1) {
+          relay.on('event', eventHandler);
+          relayEventListeners.push(() => relay.off('event', eventHandler));
+        }
+      });
+      
       return {
         unsub: () => {
-          subscription.close();
+          sub.close();
+          relayEventListeners.forEach(removeListener => removeListener());
         },
-        on: (_event: string, _callback: (event: Event) => void) => {},
-        off: (_event: string, _callback: (event: Event) => void) => {}
+        on: (event: string, callback: (event: Event) => void) => {
+          if (event === 'event') {
+            pool.relays.forEach(relay => {
+              if (relay.status === 1) {
+                relay.on('event', callback);
+              }
+            });
+          }
+        },
+        off: (event: string, callback: (event: Event) => void) => {
+          if (event === 'event') {
+            pool.relays.forEach(relay => {
+              relay.off('event', callback);
+            });
+          }
+        }
       };
     } catch (error) {
       console.error("Failed to subscribe to events:", error);
@@ -160,7 +176,6 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     if (!pool || pubkeys.length === 0) return [];
 
     try {
-      // Create filter for profile events
       const filter: Filter = {
         kinds: [0],
         authors: pubkeys,
@@ -177,10 +192,8 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     if (!pool || !keys?.publicKey) return [];
 
     try {
-      // First get followed users
       const following = await getFollowing();
       
-      // If not following anyone, just get recent global posts
       const filter: Filter = {
         kinds: [1],
         limit,
@@ -223,7 +236,6 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
 
       if (!events.length) return [];
 
-      // Sort by created_at to get the most recent
       const sortedEvents = events.sort((a, b) => b.created_at - a.created_at);
       const latestEvent = sortedEvents[0];
       
@@ -263,19 +275,14 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     if (!pool || !keys?.privateKey || !keys?.publicKey) return false;
 
     try {
-      // Get current following
       const currentFollowing = await getFollowing();
       
-      // Check if already following
       if (currentFollowing.includes(pubkey)) return true;
       
-      // Add the new pubkey
       const newFollowing = [...currentFollowing, pubkey];
       
-      // Create new contact list event
       const tags = newFollowing.map(pk => ['p', pk]);
       
-      // Publish the updated contact list
       const event = await publishEvent({
         kind: 3,
         content: '',
@@ -284,7 +291,6 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
       });
       
       if (event) {
-        // Update local state
         setUserFollows(newFollowing);
         return true;
       }
@@ -300,16 +306,12 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     if (!pool || !keys?.privateKey || !keys?.publicKey) return false;
 
     try {
-      // Get current following
       const currentFollowing = await getFollowing();
       
-      // Remove the pubkey
       const newFollowing = currentFollowing.filter(pk => pk !== pubkey);
       
-      // Create new contact list event
       const tags = newFollowing.map(pk => ['p', pk]);
       
-      // Publish the updated contact list
       const event = await publishEvent({
         kind: 3,
         content: '',
@@ -318,7 +320,6 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
       });
       
       if (event) {
-        // Update local state
         setUserFollows(newFollowing);
         return true;
       }
@@ -344,23 +345,19 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
       let pubkeys: string[] = [];
       
       if (pubkey) {
-        // If we've already fetched this profile recently, skip
         if (profileDataFetched.has(pubkey)) {
           return;
         }
         pubkeys = [pubkey];
         
-        // Mark this pubkey as fetched
         setProfileDataFetched(prev => {
           const updated = new Set(prev);
           updated.add(pubkey);
           return updated;
         });
       } else {
-        // Get all follows to fetch their profiles
         pubkeys = await getFollowing();
         
-        // Add the user's own pubkey if available
         if (keys?.publicKey && !pubkeys.includes(keys.publicKey)) {
           pubkeys.push(keys.publicKey);
         }
@@ -401,7 +398,6 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
       });
 
       if (event) {
-        // Update local profile data
         const newProfileData = { ...profileData };
         newProfileData[keys.publicKey] = profile;
         setProfileData(newProfileData);
@@ -422,20 +418,16 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
       const category = isPrivate ? 'private' : 'public';
       const currentBookmarks = [...bookmarks[category]];
       
-      // Check if already bookmarked
       if (currentBookmarks.includes(eventId)) return true;
       
-      // Add new bookmark
       const newBookmarks = { ...bookmarks };
       newBookmarks[category] = [...currentBookmarks, eventId];
       
-      // Save bookmarks
       setBookmarks(newBookmarks);
       
-      // For public bookmarks, publish to the network
       if (!isPrivate) {
         await publishEvent({
-          kind: 30001, // Bookmark list
+          kind: 30001,
           content: 'Bookmarks',
           tags: [
             ['d', 'bookmarks'],
