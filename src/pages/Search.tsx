@@ -1,23 +1,28 @@
+
 import React, { useState, useEffect } from "react";
 import { useNostr } from "../hooks/useNostr";
-import { Event, Filter } from "nostr-tools";
+import { Event } from "nostr-tools";
 import { NostrPost } from "../components/Nostr/NostrPost";
 import { UserCard } from "../components/Nostr/UserCard";
 import { Search as SearchIcon, Users, MessageSquare, Hash, Loader2 } from "lucide-react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { toast } from "@/components/ui/use-toast";
 
 export const Search: React.FC = () => {
   const location = useLocation();
-  const { pool, relays } = useNostr();
+  const navigate = useNavigate();
+  const { searchContent, searchProfiles, searchHashtags, relays } = useNostr();
   const [query, setQuery] = useState("");
   const [activeTab, setActiveTab] = useState("posts");
   const [results, setResults] = useState<{
     posts: Event[];
     profiles: Event[];
+    hashtags: Event[];
     loading: boolean;
   }>({
     posts: [],
     profiles: [],
+    hashtags: [],
     loading: false,
   });
 
@@ -31,56 +36,55 @@ export const Search: React.FC = () => {
   }, [location.search]);
 
   const handleSearch = async (searchQuery: string) => {
-    if (!searchQuery.trim() || !pool) return;
+    if (!searchQuery.trim()) return;
     
     setResults(prev => ({ ...prev, loading: true }));
     
     try {
-      const postFilter: Filter = {
-        kinds: [1],
-        limit: 40,
-      };
+      // First, let's show what relays we're searching
+      console.log(`Searching across ${relays.length} relays: ${relays.join(', ')}`);
       
-      const postResults = await pool.querySync(relays, postFilter);
+      // Posts search
+      const postResults = await searchContent(searchQuery);
+      console.log(`Found ${postResults.length} posts matching "${searchQuery}"`);
       
-      const filteredPosts = postResults.filter(event => 
-        event.content.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+      // Profile search
+      const profileResults = await searchProfiles(searchQuery);
+      console.log(`Found ${profileResults.length} profiles matching "${searchQuery}"`);
       
-      const profileFilter: Filter = {
-        kinds: [0],
-        limit: 20,
-      };
-      
-      const profileResults = await pool.querySync(relays, profileFilter);
-      
-      const filteredProfiles = profileResults.filter(event => {
-        try {
-          const profile = JSON.parse(event.content);
-          return (
-            profile.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            profile.display_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            profile.about?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            profile.nip05?.toLowerCase().includes(searchQuery.toLowerCase())
-          );
-        } catch (e) {
-          return false;
-        }
-      });
+      // Hashtag search (if the query starts with #, search for that tag without the #)
+      let hashtagResults: Event[] = [];
+      if (searchQuery.startsWith('#')) {
+        hashtagResults = await searchHashtags(searchQuery.slice(1));
+      } else {
+        // Also search for the term as a hashtag
+        hashtagResults = await searchHashtags(searchQuery);
+      }
+      console.log(`Found ${hashtagResults.length} posts with hashtag "${searchQuery}"`);
       
       setResults({
-        posts: filteredPosts,
-        profiles: filteredProfiles,
+        posts: postResults,
+        profiles: profileResults,
+        hashtags: hashtagResults,
         loading: false,
       });
     } catch (error) {
       console.error("Search error:", error);
       setResults(prev => ({ ...prev, loading: false }));
+      toast({
+        title: "Search failed",
+        description: "There was an error performing your search. Please try again.",
+        variant: "destructive"
+      });
     }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!query.trim()) return;
+    
+    // Update URL to reflect search
+    navigate(`/search?q=${encodeURIComponent(query)}`);
     handleSearch(query);
   };
 
@@ -145,6 +149,13 @@ export const Search: React.FC = () => {
         </div>
       </div>
       
+      {/* Search info */}
+      {query && !results.loading && (
+        <div className="mb-4 text-sm text-gray-500">
+          Searching across {relays.length} relay{relays.length !== 1 ? 's' : ''}
+        </div>
+      )}
+      
       {results.loading ? (
         <div className="flex justify-center my-12">
           <Loader2 className="h-8 w-8 animate-spin text-gestalt-purple" />
@@ -178,8 +189,19 @@ export const Search: React.FC = () => {
           )}
         </div>
       ) : (
-        <div className="text-center py-12">
-          <p className="text-gray-500">Hashtag search is coming soon</p>
+        <div>
+          {query && results.hashtags.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-gray-500">No posts found with hashtag "{query}"</p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              <h2 className="text-xl font-bold">#{query.startsWith('#') ? query.slice(1) : query}</h2>
+              {results.hashtags.map(post => (
+                <NostrPost key={post.id} event={post} />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

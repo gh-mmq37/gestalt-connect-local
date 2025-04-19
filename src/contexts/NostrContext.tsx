@@ -1,54 +1,21 @@
 
 import React, { createContext, useState, useEffect, ReactNode } from "react";
-import { SimplePool, Event, Filter, nip19 } from "nostr-tools";
+import { SimplePool, Event, Filter } from "nostr-tools";
 import { useLocalStorage } from "../hooks/useLocalStorage";
-
-// Default relays
-const DEFAULT_RELAYS = [
-  "wss://relay.damus.io",
-  "wss://relay.nostr.band", 
-  "wss://nostr.wine",
-  "wss://nos.lol",
-  "wss://relay.current.fyi"
-];
-
-interface NostrKeys {
-  privateKey: string;
-  publicKey: string;
-  npub: string;
-  nsec: string;
-}
-
-// Define the type for subscription
-type Subscription = {
-  unsub: () => void;
-  on: (event: string, callback: (event: Event) => void) => void;
-  off: (event: string, callback: (event: Event) => void) => void;
-};
-
-interface NostrContextType {
-  pool: SimplePool | null;
-  relays: string[];
-  addRelay: (relay: string) => void;
-  removeRelay: (relay: string) => void;
-  keys: NostrKeys | null;
-  publishEvent: (event: Partial<Event>) => Promise<Event | null>;
-  subscribeToEvents: (filters: Filter[], onEvent: (event: Event) => void) => Subscription | null;
-  getProfileEvents: (pubkeys: string[]) => Promise<Event[]>;
-  getPostEvents: (limit?: number) => Promise<Event[]>;
-  getEvent: (id: string) => Promise<Event | null>;
-  followUser: (pubkey: string) => Promise<boolean>;
-  unfollowUser: (pubkey: string) => Promise<boolean>;
-  getFollowing: () => Promise<string[]>;
-  getFollowers: (pubkey?: string) => Promise<string[]>;
-  profileData: Record<string, any>;
-  refreshProfileData: (pubkey?: string) => Promise<void>;
-  userFollows: string[];
-  refreshFollows: () => Promise<void>;
-  saveProfileChanges: (profile: any) => Promise<boolean>;
-  bookmarkPost: (eventId: string, isPrivate?: boolean) => Promise<boolean>;
-  getBookmarks: () => Promise<{ public: string[], private: string[] }>;
-}
+import { NostrKeys, NostrContextType, Subscription } from "../types/nostr";
+import { DEFAULT_RELAYS } from "../constants/nostrConstants";
+import { 
+  createNostrEvent, 
+  parseProfileContent, 
+  createProfileFilter,
+  createPostFilter,
+  createContactsFilter,
+  createDirectMessageFilter,
+  createHashtagSearchFilter,
+  createContentSearchFilter,
+  createMarketplaceFilter,
+  createChannelsFilter
+} from "../utils/nostrHelpers";
 
 export const NostrContext = createContext<NostrContextType | null>(null);
 
@@ -115,11 +82,15 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
         tags: eventData.tags || []
       };
       
-      const pub = pool.publish(relays, completeEvent);
+      // Get the event hash
+      const event = await window.nostr?.signEvent(completeEvent) || completeEvent;
+      
+      // Publish to relays
+      const pub = pool.publish(relays, event);
       
       await Promise.race(pub);
       
-      return completeEvent;
+      return event;
     } catch (error) {
       console.error("Failed to publish event:", error);
       return null;
@@ -130,37 +101,33 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     if (!pool) return null;
 
     try {
-      // Create subscriptions for each filter
-      const subs = filters.map(filter => 
-        // Pass a single filter to subscribe, not an array of filters
-        pool.subscribe(relays, filter)
-      );
-      
-      // Set up event handlers for each subscription
-      subs.forEach(sub => {
-        // Create a callback that will be triggered whenever an event is received
+      // Subscribe to each filter (fixed: instead of passing filter array)
+      const subscriptions = filters.map(filter => {
+        const sub = pool.sub(relays, [filter]);
+        
+        // Set up event handler
         sub.on('event', onEvent);
+        
+        return sub;
       });
       
-      // Create a composite subscription handler
+      // Return a composite subscription object
       return {
         unsub: () => {
-          subs.forEach(sub => sub.close());
+          subscriptions.forEach(sub => sub.unsub());
         },
         on: (event: string, callback: (event: Event) => void) => {
           if (event === 'event') {
-            // Replace existing handlers with new ones
-            subs.forEach(sub => {
+            subscriptions.forEach(sub => {
               sub.on('event', callback);
             });
           }
         },
         off: (event: string, callback: (event: Event) => void) => {
           if (event === 'event') {
-            // Since we can't directly remove specific handlers,
-            // we'll close the subscriptions and recreate them without the callback
-            subs.forEach(sub => {
-              sub.close();
+            subscriptions.forEach(sub => {
+              // Since we can't directly remove specific handlers, we unsub and resub
+              sub.unsub();
             });
           }
         }
@@ -175,12 +142,8 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     if (!pool || pubkeys.length === 0) return [];
 
     try {
-      const filter: Filter = {
-        kinds: [0],
-        authors: pubkeys,
-      };
-      
-      return await pool.querySync(relays, filter);
+      const filter = createProfileFilter(pubkeys);
+      return await pool.list(relays, [filter]);
     } catch (error) {
       console.error("Failed to get profile events:", error);
       return [];
@@ -192,17 +155,12 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
 
     try {
       const following = await getFollowing();
+      const filter = createPostFilter({ 
+        authors: following.length ? following : undefined,
+        limit
+      });
       
-      const filter: Filter = {
-        kinds: [1],
-        limit,
-      };
-      
-      if (following.length) {
-        filter.authors = following;
-      }
-      
-      return await pool.querySync(relays, filter);
+      return await pool.list(relays, [filter]);
     } catch (error) {
       console.error("Failed to get post events:", error);
       return [];
@@ -214,7 +172,7 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
 
     try {
       const filter: Filter = { ids: [id] };
-      const events = await pool.querySync(relays, filter);
+      const events = await pool.list(relays, [filter]);
       return events.length > 0 ? events[0] : null;
     } catch (error) {
       console.error("Failed to get event:", error);
@@ -226,12 +184,8 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     if (!pool || !keys?.publicKey) return [];
 
     try {
-      const filter: Filter = {
-        kinds: [3],
-        authors: [keys.publicKey],
-      };
-      
-      const events = await pool.querySync(relays, filter);
+      const filter = createContactsFilter(keys.publicKey);
+      const events = await pool.list(relays, [filter]);
 
       if (!events.length) return [];
 
@@ -261,7 +215,7 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
         '#p': [targetPubkey],
       };
       
-      const events = await pool.querySync(relays, filter);
+      const events = await pool.list(relays, [filter]);
       
       return events.map(event => event.pubkey);
     } catch (error) {
@@ -446,6 +400,148 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     return bookmarks;
   };
 
+  // New methods for NIP-15, NIP-17, NIP-18 support
+  const getChannels = async (): Promise<Event[]> => {
+    if (!pool) return [];
+    
+    try {
+      const filter = createChannelsFilter();
+      return await pool.list(relays, [filter]);
+    } catch (error) {
+      console.error("Failed to get channels:", error);
+      return [];
+    }
+  };
+
+  const getMarketplaceItems = async (): Promise<Event[]> => {
+    if (!pool) return [];
+    
+    try {
+      const filter = createMarketplaceFilter();
+      return await pool.list(relays, [filter]);
+    } catch (error) {
+      console.error("Failed to get marketplace items:", error);
+      return [];
+    }
+  };
+
+  const getDirectMessages = async (pubkey?: string): Promise<Event[]> => {
+    if (!pool || !keys?.publicKey) return [];
+    
+    try {
+      const targetPubkey = pubkey || keys.publicKey;
+      const filter = createDirectMessageFilter(keys.publicKey, targetPubkey);
+      
+      return await pool.list(relays, [filter]);
+    } catch (error) {
+      console.error("Failed to get direct messages:", error);
+      return [];
+    }
+  };
+
+  const sendDirectMessage = async (recipientPubkey: string, content: string): Promise<boolean> => {
+    if (!pool || !keys?.privateKey || !keys?.publicKey) return false;
+    
+    try {
+      const event = await publishEvent({
+        kind: 4,
+        content,
+        tags: [
+          ['p', recipientPubkey]
+        ],
+      });
+      
+      return event !== null;
+    } catch (error) {
+      console.error("Failed to send direct message:", error);
+      return false;
+    }
+  };
+
+  const createMarketplaceListing = async (listing: any): Promise<boolean> => {
+    if (!pool || !keys?.privateKey) return false;
+    
+    try {
+      const event = await publishEvent({
+        kind: 30017,
+        content: JSON.stringify(listing),
+        tags: [
+          ['t', 'marketplace'],
+          ['price', listing.price.toString()],
+          ['title', listing.title]
+        ],
+      });
+      
+      return event !== null;
+    } catch (error) {
+      console.error("Failed to create marketplace listing:", error);
+      return false;
+    }
+  };
+
+  // Search functionality
+  const searchContent = async (query: string, options: { kinds?: number[], limit?: number } = {}): Promise<Event[]> => {
+    if (!pool || !query.trim()) return [];
+    
+    try {
+      const filter = createContentSearchFilter(query, options);
+      const events = await pool.list(relays, [filter]);
+      
+      // Client-side filtering since Nostr doesn't have native content search
+      return events.filter(event => 
+        event.content.toLowerCase().includes(query.toLowerCase())
+      );
+    } catch (error) {
+      console.error("Failed to search content:", error);
+      return [];
+    }
+  };
+
+  const searchProfiles = async (query: string, limit = 20): Promise<Event[]> => {
+    if (!pool || !query.trim()) return [];
+    
+    try {
+      // Get all profile metadata we can find
+      const filter: Filter = { kinds: [0], limit };
+      const profileEvents = await pool.list(relays, [filter]);
+      
+      // Filter client-side based on profile data
+      return profileEvents.filter(event => {
+        try {
+          const profile = JSON.parse(event.content);
+          const npub = event.pubkey;
+          
+          return (
+            profile.display_name?.toLowerCase().includes(query.toLowerCase()) ||
+            profile.nip05?.toLowerCase().includes(query.toLowerCase()) ||
+            profile.about?.toLowerCase().includes(query.toLowerCase()) ||
+            npub.includes(query.toLowerCase())
+          );
+        } catch (e) {
+          return false;
+        }
+      });
+    } catch (error) {
+      console.error("Failed to search profiles:", error);
+      return [];
+    }
+  };
+
+  const searchHashtags = async (tag: string, limit = 50): Promise<Event[]> => {
+    if (!pool || !tag.trim()) return [];
+    
+    try {
+      // Clean the tag (remove # if present)
+      const cleanTag = tag.startsWith('#') ? tag.substring(1) : tag;
+      const filter = createHashtagSearchFilter(cleanTag, limit);
+      
+      return await pool.list(relays, [filter]);
+    } catch (error) {
+      console.error("Failed to search hashtags:", error);
+      return [];
+    }
+  };
+
   return (
     <NostrContext.Provider
       value={{
@@ -470,6 +566,14 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
         saveProfileChanges,
         bookmarkPost,
         getBookmarks,
+        getChannels,
+        getMarketplaceItems,
+        getDirectMessages,
+        sendDirectMessage,
+        createMarketplaceListing,
+        searchContent,
+        searchProfiles,
+        searchHashtags
       }}
     >
       {children}

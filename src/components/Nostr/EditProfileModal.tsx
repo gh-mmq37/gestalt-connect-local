@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { X, Upload, User } from 'lucide-react';
+import { X, Upload, User, Copy, Check } from 'lucide-react';
 import { useNostr } from '../../hooks/useNostr';
 import { toast } from '@/components/ui/use-toast';
 
@@ -17,7 +17,6 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
 }) => {
   const { saveProfileChanges } = useNostr();
   const [formData, setFormData] = useState({
-    name: currentProfile.name || '',
     display_name: currentProfile.display_name || '',
     picture: currentProfile.picture || '',
     banner: currentProfile.banner || '',
@@ -28,6 +27,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
   });
   const [isLoading, setIsLoading] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -85,6 +85,17 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
     }
   };
 
+  const copyNpub = (npub: string) => {
+    navigator.clipboard.writeText(npub);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+    
+    toast({
+      title: 'Copied',
+      description: 'Public key copied to clipboard',
+    });
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
       <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
@@ -132,42 +143,22 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
             </div>
 
             {/* Basic information */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                  Username
-                </label>
-                <input
-                  type="text"
-                  id="name"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  className="mt-1 p-2 w-full border border-gray-300 rounded-md"
-                  placeholder="Username"
-                />
-                <p className="mt-1 text-xs text-gray-500">
-                  This is your username for mentions (e.g., @username)
-                </p>
-              </div>
-              
-              <div>
-                <label htmlFor="display_name" className="block text-sm font-medium text-gray-700">
-                  Display Name
-                </label>
-                <input
-                  type="text"
-                  id="display_name"
-                  name="display_name"
-                  value={formData.display_name}
-                  onChange={handleChange}
-                  className="mt-1 p-2 w-full border border-gray-300 rounded-md"
-                  placeholder="Display Name"
-                />
-                <p className="mt-1 text-xs text-gray-500">
-                  This is the name displayed on your profile
-                </p>
-              </div>
+            <div>
+              <label htmlFor="display_name" className="block text-sm font-medium text-gray-700">
+                Display Name
+              </label>
+              <input
+                type="text"
+                id="display_name"
+                name="display_name"
+                value={formData.display_name}
+                onChange={handleChange}
+                className="mt-1 p-2 w-full border border-gray-300 rounded-md"
+                placeholder="Display Name"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                This is the name displayed on your profile
+              </p>
             </div>
 
             {/* About section */}
@@ -234,7 +225,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
                 placeholder="you@example.com"
               />
               <p className="mt-1 text-xs text-gray-500">
-                This is used for verification and search
+                This is used for verification and search (similar to a username)
               </p>
             </div>
 
