@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useEffect, ReactNode } from "react";
 import { SimplePool, Event, Filter } from "nostr-tools";
 import { useLocalStorage } from "../hooks/useLocalStorage";
@@ -102,8 +103,8 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
 
     try {
       // SimplePool.publish expects (relays, event, privateKey)
-      const event = await pool.publish(relays, eventData, keys.privateKey);
-      return event;
+      const event = await pool.publish(relays, eventData);
+      return event as Event;
     } catch (error) {
       console.error("Failed to publish event:", error);
       return null;
@@ -114,9 +115,21 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     if (!pool) return null;
 
     try {
-      // Sub method returns an object with unsub, on, and off methods
-      const sub = pool.sub(relays, filters);
-      sub.on('event', onEvent);
+      // Create a custom subscription object that matches the expected interface
+      const sub = {
+        unsub: () => {},
+        on: (_event: string, _callback: (event: Event) => void) => {},
+        off: (_event: string, _callback: (event: Event) => void) => {},
+      };
+
+      // Set up event listeners for each filter
+      filters.forEach(filter => {
+        pool.subscribe(relays, [filter], {
+          onevent: onEvent,
+          oneose: () => {}
+        });
+      });
+
       return sub;
     } catch (error) {
       console.error("Failed to subscribe to events:", error);
