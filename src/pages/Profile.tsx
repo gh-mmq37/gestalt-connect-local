@@ -98,7 +98,7 @@ export const Profile: React.FC = () => {
     }
   };
   
-  function handleFollowToggle() {
+  const handleFollowToggle = async () => {
     if (!keys || isUserProfile) return;
     
     setIsLoading(true);
@@ -120,7 +120,7 @@ export const Profile: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }
+  };
   
   function handleUpdateProfile() {
     if (!isUserProfile || !keys) return;

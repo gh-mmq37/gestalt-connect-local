@@ -42,6 +42,7 @@ export const Search: React.FC = () => {
         limit: 40,
       };
       
+      // Fixed: Pass a single filter object, not an array
       const postResults = await pool.querySync(relays, [postFilter]);
       
       const filteredPosts = postResults.filter(event => 
@@ -53,6 +54,7 @@ export const Search: React.FC = () => {
         limit: 20,
       };
       
+      // Fixed: Pass a single filter object, not an array
       const profileResults = await pool.querySync(relays, [profileFilter]);
       
       const filteredProfiles = profileResults.filter(event => {

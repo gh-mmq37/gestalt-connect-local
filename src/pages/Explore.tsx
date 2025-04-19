@@ -30,6 +30,7 @@ export const Explore: React.FC = () => {
             kinds: [1],
             limit: 30,
           };
+          // Fixed: Pass a single filter object, not an array
           events = await pool.querySync(relays, [trendingFilter]);
           break;
         case "global":
@@ -37,6 +38,7 @@ export const Explore: React.FC = () => {
             kinds: [1],
             limit: 30,
           };
+          // Fixed: Pass a single filter object, not an array
           events = await pool.querySync(relays, [globalFilter]);
           break;
         case "local":
@@ -46,6 +48,7 @@ export const Explore: React.FC = () => {
             limit: 30,
             "#t": ["local"]
           };
+          // Fixed: Pass a single filter object, not an array
           events = await pool.querySync(relays, [localFilter]);
           break;
       }

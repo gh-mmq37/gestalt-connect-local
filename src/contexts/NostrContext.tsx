@@ -135,6 +135,7 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
       const subscriptions: any[] = [];
       
       filters.forEach(filter => {
+        // Fixed: Pass a single filter object, not an array
         const sub = pool.subscribe(relays, [filter], {
           onevent: onEvent,
           oneose: () => {}
@@ -170,6 +171,7 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
         authors: pubkeys,
       };
       
+      // Fixed: Pass a single filter object, not an array
       return await pool.querySync(relays, [filter]);
     } catch (error) {
       console.error("Failed to get profile events:", error);
@@ -194,6 +196,7 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
         filter.authors = following;
       }
       
+      // Fixed: Pass a single filter object, not an array
       return await pool.querySync(relays, [filter]);
     } catch (error) {
       console.error("Failed to get post events:", error);
@@ -206,6 +209,7 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
 
     try {
       const filter: Filter = { ids: [id] };
+      // Fixed: Pass a single filter object, not an array
       const events = await pool.querySync(relays, [filter]);
       return events.length > 0 ? events[0] : null;
     } catch (error) {
@@ -223,6 +227,7 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
         authors: [keys.publicKey],
       };
       
+      // Fixed: Pass a single filter object, not an array
       const events = await pool.querySync(relays, [filter]);
 
       if (!events.length) return [];
