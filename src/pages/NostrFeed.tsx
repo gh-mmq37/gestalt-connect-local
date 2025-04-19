@@ -57,7 +57,7 @@ export const NostrFeed: React.FC = () => {
           }
           
           // Use querySync instead of list
-          const events = await pool.querySync(relays, filter);
+          const events = await pool.querySync(relays, [filter]);
           const sortedEvents = events.sort((a, b) => b.created_at - a.created_at);
           setPosts(sortedEvents);
         }
