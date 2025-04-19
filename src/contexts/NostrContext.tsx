@@ -141,7 +141,8 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
       const subscriptions: any[] = [];
       
       filters.forEach(filter => {
-        const sub = pool.sub(relays, [filter]);
+        // Use subscribe() instead of sub()
+        const sub = pool.subscribe(relays, [filter]);
         sub.on('event', onEvent);
         subscriptions.push(sub);
       });
