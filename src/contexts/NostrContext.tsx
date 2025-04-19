@@ -131,8 +131,8 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
 
     try {
       const filter = createProfileFilter(pubkeys);
-      // Use list instead of query for SimplePool
-      const events = await pool.list(relays, [filter]);
+      // Use latest API in SimplePool
+      const events = await pool.querySync(relays, [filter]);
       return events;
     } catch (error) {
       console.error("Failed to get profile events:", error);
@@ -150,8 +150,8 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
         limit
       });
       
-      // Use list for SimplePool
-      const events = await pool.list(relays, [filter]);
+      // Use latest API for SimplePool
+      const events = await pool.querySync(relays, [filter]);
       return events;
     } catch (error) {
       console.error("Failed to get post events:", error);
@@ -164,8 +164,8 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
 
     try {
       const filter: Filter = { ids: [id] };
-      // Use list for SimplePool
-      const events = await pool.list(relays, [filter]);
+      // Use latest API for SimplePool
+      const events = await pool.querySync(relays, [filter]);
       return events.length > 0 ? events[0] : null;
     } catch (error) {
       console.error("Failed to get event:", error);
@@ -178,8 +178,8 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
 
     try {
       const filter = createContactsFilter(keys.publicKey);
-      // Use list for SimplePool
-      const events = await pool.list(relays, [filter]);
+      // Use latest API for SimplePool
+      const events = await pool.querySync(relays, [filter]);
 
       if (!events.length) return [];
 
@@ -209,8 +209,8 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
         '#p': [targetPubkey],
       };
       
-      // Use list for SimplePool
-      const events = await pool.list(relays, [filter]);
+      // Use latest API for SimplePool
+      const events = await pool.querySync(relays, [filter]);
       
       return events.map(event => event.pubkey);
     } catch (error) {
@@ -400,8 +400,8 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     
     try {
       const filter = createChannelsFilter();
-      // Use list for SimplePool
-      const events = await pool.list(relays, [filter]);
+      // Use latest API for SimplePool
+      const events = await pool.querySync(relays, [filter]);
       return events;
     } catch (error) {
       console.error("Failed to get channels:", error);
@@ -414,8 +414,8 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     
     try {
       const filter = createMarketplaceFilter();
-      // Use list for SimplePool
-      const events = await pool.list(relays, [filter]);
+      // Use latest API for SimplePool
+      const events = await pool.querySync(relays, [filter]);
       return events;
     } catch (error) {
       console.error("Failed to get marketplace items:", error);
@@ -430,8 +430,8 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
       const targetPubkey = pubkey || keys.publicKey;
       const filter = createDirectMessageFilter(keys.publicKey, targetPubkey);
       
-      // Use list for SimplePool
-      const events = await pool.list(relays, [filter]);
+      // Use latest API for SimplePool
+      const events = await pool.querySync(relays, [filter]);
       return events;
     } catch (error) {
       console.error("Failed to get direct messages:", error);
@@ -484,8 +484,8 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     
     try {
       const filter = createContentSearchFilter(query, options);
-      // Use list for SimplePool
-      const events = await pool.list(relays, [filter]);
+      // Use latest API for SimplePool
+      const events = await pool.querySync(relays, [filter]);
       
       // Client-side filtering since Nostr doesn't have native content search
       return events.filter(event => 
@@ -503,11 +503,11 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     try {
       // Get all profile metadata we can find
       const filter: Filter = { kinds: [0], limit };
-      // Use list for SimplePool
-      const profileEvents = await pool.list(relays, [filter]);
+      // Use latest API for SimplePool
+      const events = await pool.querySync(relays, [filter]);
       
       // Filter client-side based on profile data
-      return profileEvents.filter(event => {
+      return events.filter(event => {
         try {
           const profile = JSON.parse(event.content);
           const npub = event.pubkey;
@@ -536,8 +536,8 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
       const cleanTag = tag.startsWith('#') ? tag.substring(1) : tag;
       const filter = createHashtagSearchFilter(cleanTag, limit);
       
-      // Use list for SimplePool
-      const events = await pool.list(relays, [filter]);
+      // Use latest API for SimplePool
+      const events = await pool.querySync(relays, [filter]);
       return events;
     } catch (error) {
       console.error("Failed to search hashtags:", error);
