@@ -5,7 +5,7 @@ import { useLocalStorage } from "../hooks/useLocalStorage";
 // Default relays
 const DEFAULT_RELAYS = [
   "wss://relay.damus.io",
-  "wss://relay.nostr.band",
+  "wss://relay.nostr.band", 
   "wss://nostr.wine",
   "wss://nos.lol",
   "wss://relay.current.fyi"
@@ -129,29 +129,30 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     if (!pool) return null;
 
     try {
-      // Create a subscription with each filter
+      // Create subscriptions for each filter
       const subs = filters.map(filter => 
-        pool.sub(relays, [filter], { skipVerification: false })
+        pool.subscribe(relays, [filter], { skipVerification: false })
       );
-      
-      // Set up event handlers
-      subs.forEach(sub => {
-        sub.on('event', onEvent);
-      });
       
       // Create a composite subscription handler
       return {
         unsub: () => {
-          subs.forEach(sub => sub.unsub());
+          subs.forEach(sub => sub.close());
         },
         on: (event: string, callback: (event: Event) => void) => {
           if (event === 'event') {
-            subs.forEach(sub => sub.on('event', callback));
+            // Set up event handlers on each subscription
+            subs.forEach(sub => {
+              sub.on('event', callback);
+            });
           }
         },
         off: (event: string, callback: (event: Event) => void) => {
           if (event === 'event') {
-            subs.forEach(sub => sub.off('event', callback));
+            // Remove event handlers from each subscription
+            subs.forEach(sub => {
+              sub.off('event', callback);
+            });
           }
         }
       };
