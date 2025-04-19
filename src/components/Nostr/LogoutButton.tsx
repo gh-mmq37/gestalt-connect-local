@@ -8,11 +8,11 @@ export const LogoutButton: React.FC = () => {
   const { logout } = useNostr();
   
   const handleLogout = () => {
+    logout();
     toast({
       title: "Logging out",
       description: "You have been securely logged out.",
     });
-    logout();
   };
   
   return (

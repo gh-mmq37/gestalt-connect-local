@@ -100,8 +100,8 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     if (!pool) return null;
 
     try {
-      // Subscribe to events with the filters - handle multiple filters correctly
-      const sub = pool.sub(relays, filters);
+      // Subscribe to events with the filters - using single filter approach
+      const sub = pool.subscribe(relays, filters);
       
       // Set up the event handler
       sub.on('event', onEvent);
@@ -109,7 +109,7 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
       // Return a subscription object matching our interface
       return {
         unsub: () => {
-          sub.unsub();
+          sub.close();
         },
         on: (event: string, callback: (event: Event) => void) => {
           sub.on(event, callback);
@@ -129,8 +129,8 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
 
     try {
       const filter = createProfileFilter(pubkeys);
-      // Use list instead of querySync for single filter
-      const events = await pool.list(relays, [filter]);
+      // Use query for single filter
+      const events = await pool.query(relays, filter);
       return events;
     } catch (error) {
       console.error("Failed to get profile events:", error);
@@ -148,8 +148,8 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
         limit
       });
       
-      // Use list instead of querySync for single filter
-      const events = await pool.list(relays, [filter]);
+      // Use query for single filter
+      const events = await pool.query(relays, filter);
       return events;
     } catch (error) {
       console.error("Failed to get post events:", error);
@@ -162,8 +162,8 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
 
     try {
       const filter: Filter = { ids: [id] };
-      // Use list instead of querySync for single filter
-      const events = await pool.list(relays, [filter]);
+      // Use query for single filter
+      const events = await pool.query(relays, filter);
       return events.length > 0 ? events[0] : null;
     } catch (error) {
       console.error("Failed to get event:", error);
@@ -176,8 +176,8 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
 
     try {
       const filter = createContactsFilter(keys.publicKey);
-      // Use list instead of querySync for single filter
-      const events = await pool.list(relays, [filter]);
+      // Use query for single filter
+      const events = await pool.query(relays, filter);
 
       if (!events.length) return [];
 
@@ -207,8 +207,8 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
         '#p': [targetPubkey],
       };
       
-      // Use list instead of querySync for single filter
-      const events = await pool.list(relays, [filter]);
+      // Use query for single filter
+      const events = await pool.query(relays, filter);
       
       return events.map(event => event.pubkey);
     } catch (error) {
@@ -398,8 +398,8 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     
     try {
       const filter = createChannelsFilter();
-      // Use list instead of querySync for single filter
-      const events = await pool.list(relays, [filter]);
+      // Use query for single filter
+      const events = await pool.query(relays, filter);
       return events;
     } catch (error) {
       console.error("Failed to get channels:", error);
@@ -412,8 +412,8 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     
     try {
       const filter = createMarketplaceFilter();
-      // Use list instead of querySync for single filter
-      const events = await pool.list(relays, [filter]);
+      // Use query for single filter
+      const events = await pool.query(relays, filter);
       return events;
     } catch (error) {
       console.error("Failed to get marketplace items:", error);
@@ -428,8 +428,8 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
       const targetPubkey = pubkey || keys.publicKey;
       const filter = createDirectMessageFilter(keys.publicKey, targetPubkey);
       
-      // Use list instead of querySync for single filter
-      const events = await pool.list(relays, [filter]);
+      // Use query for single filter
+      const events = await pool.query(relays, filter);
       return events;
     } catch (error) {
       console.error("Failed to get direct messages:", error);
@@ -482,8 +482,8 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     
     try {
       const filter = createContentSearchFilter(query, options);
-      // Use list instead of querySync for single filter
-      const events = await pool.list(relays, [filter]);
+      // Use query for single filter
+      const events = await pool.query(relays, filter);
       
       // Client-side filtering since Nostr doesn't have native content search
       return events.filter(event => 
@@ -501,8 +501,8 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     try {
       // Get all profile metadata we can find
       const filter: Filter = { kinds: [0], limit };
-      // Use list instead of querySync for single filter
-      const profileEvents = await pool.list(relays, [filter]);
+      // Use query for single filter
+      const profileEvents = await pool.query(relays, filter);
       
       // Filter client-side based on profile data
       return profileEvents.filter(event => {
@@ -534,8 +534,8 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
       const cleanTag = tag.startsWith('#') ? tag.substring(1) : tag;
       const filter = createHashtagSearchFilter(cleanTag, limit);
       
-      // Use list instead of querySync for single filter
-      const events = await pool.list(relays, [filter]);
+      // Use query for single filter
+      const events = await pool.query(relays, filter);
       return events;
     } catch (error) {
       console.error("Failed to search hashtags:", error);
