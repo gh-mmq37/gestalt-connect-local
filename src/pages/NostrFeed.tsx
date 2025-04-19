@@ -56,7 +56,7 @@ export const NostrFeed: React.FC = () => {
             filter.authors = [customFeed.value];
           }
           
-          const events = await pool.querySync(relays, filter);
+          const events = await pool.query(relays, [filter]);
           const sortedEvents = events.sort((a, b) => b.created_at - a.created_at);
           setPosts(sortedEvents);
         }
@@ -266,7 +266,7 @@ export const NostrFeed: React.FC = () => {
   );
 };
 
-// Missing component import
+// User component
 const User = ({ className }: { className?: string }) => {
   return (
     <svg
