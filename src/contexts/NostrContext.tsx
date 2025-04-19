@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useEffect, ReactNode } from "react";
 import { SimplePool, Event, Filter } from "nostr-tools";
 import { useLocalStorage } from "../hooks/useLocalStorage";
@@ -21,9 +20,7 @@ interface NostrKeys {
 
 // Define the type for subscription returned from pool.sub()
 type Subscription = {
-  sub: {
-    unsub: () => void;
-  };
+  unsub: () => void;
   on: (event: string, callback: (event: Event) => void) => void;
   off: (event: string, callback: (event: Event) => void) => void;
 };
@@ -104,8 +101,8 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     if (!pool || !keys?.privateKey) return null;
 
     try {
-      // SimplePool.publish expects (relays, eventTemplate, privateKey)
-      const event = await pool.publish(relays, eventData as any, keys.privateKey);
+      // SimplePool.publish expects (relays, event, privateKey)
+      const event = await pool.publish(relays, eventData, keys.privateKey);
       return event;
     } catch (error) {
       console.error("Failed to publish event:", error);
@@ -117,7 +114,7 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     if (!pool) return null;
 
     try {
-      // Using the sub method from SimplePool
+      // Sub method returns an object with unsub, on, and off methods
       const sub = pool.sub(relays, filters);
       sub.on('event', onEvent);
       return sub;
@@ -131,13 +128,13 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     if (!pool) return [];
 
     try {
-      // Using Query API for profile events
-      return await pool.querySync(relays, [
-        {
-          kinds: [0],
-          authors: pubkeys,
-        },
-      ]);
+      // Using querySync API for profile events
+      const filter: Filter = {
+        kinds: [0],
+        authors: pubkeys,
+      };
+      
+      return await pool.querySync(relays, [filter]);
     } catch (error) {
       console.error("Failed to get profile events:", error);
       return [];
@@ -154,13 +151,16 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
       // If not following anyone, just get recent global posts
       const authors = following.length ? following : undefined;
       
-      return await pool.querySync(relays, [
-        {
-          kinds: [1],
-          authors,
-          limit,
-        },
-      ]);
+      const filter: Filter = {
+        kinds: [1],
+        limit,
+      };
+      
+      if (authors) {
+        filter.authors = authors;
+      }
+      
+      return await pool.querySync(relays, [filter]);
     } catch (error) {
       console.error("Failed to get post events:", error);
       return [];
@@ -171,7 +171,8 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     if (!pool) return null;
 
     try {
-      const events = await pool.querySync(relays, [{ ids: [id] }]);
+      const filter: Filter = { ids: [id] };
+      const events = await pool.querySync(relays, [filter]);
       return events.length > 0 ? events[0] : null;
     } catch (error) {
       console.error("Failed to get event:", error);
@@ -183,12 +184,12 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     if (!pool || !keys?.publicKey) return [];
 
     try {
-      const events = await pool.querySync(relays, [
-        {
-          kinds: [3],
-          authors: [keys.publicKey],
-        },
-      ]);
+      const filter: Filter = {
+        kinds: [3],
+        authors: [keys.publicKey],
+      };
+      
+      const events = await pool.querySync(relays, [filter]);
 
       if (!events.length) return [];
 

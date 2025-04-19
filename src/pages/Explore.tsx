@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { useNostr } from "../hooks/useNostr";
 import { NostrPost } from "../components/Nostr/NostrPost";
-import { Event } from "nostr-tools";
+import { Event, Filter } from "nostr-tools";
 import { Compass, TrendingUp, Globe, MapPin, Loader2 } from "lucide-react";
 
 export const Explore: React.FC = () => {
@@ -26,24 +26,27 @@ export const Explore: React.FC = () => {
       switch (activeTab) {
         case "trending":
           // In a real app, would use a specialized trending algorithm
-          events = await pool.querySync(relays, [{
+          const trendingFilter: Filter = {
             kinds: [1],
             limit: 30,
-          }]);
+          };
+          events = await pool.querySync(relays, [trendingFilter]);
           break;
         case "global":
-          events = await pool.querySync(relays, [{
+          const globalFilter: Filter = {
             kinds: [1],
             limit: 30,
-          }]);
+          };
+          events = await pool.querySync(relays, [globalFilter]);
           break;
         case "local":
           // In a real app, would filter by location tags
-          events = await pool.querySync(relays, [{
+          const localFilter: Filter = {
             kinds: [1],
             limit: 30,
             "#t": ["local"]
-          }]);
+          };
+          events = await pool.querySync(relays, [localFilter]);
           break;
       }
       

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useNostr } from "../hooks/useNostr";
@@ -14,7 +15,7 @@ import {
 } from "lucide-react";
 import { NostrPost } from "../components/Nostr/NostrPost";
 import { CreatePost } from "../components/Nostr/CreatePost";
-import { Event } from "nostr-tools";
+import { Event, Filter } from "nostr-tools";
 import { nip19 } from "nostr-tools";
 import { format } from "date-fns";
 import { toast } from "@/components/ui/use-toast";
@@ -81,13 +82,13 @@ export const Profile: React.FC = () => {
     setLoadingPosts(true);
     
     try {
-      const events = await pool.querySync(relays, [
-        {
-          kinds: [1],
-          authors: [targetPubkey],
-          limit: 30,
-        },
-      ]);
+      const filter: Filter = {
+        kinds: [1],
+        authors: [targetPubkey],
+        limit: 30,
+      };
+      
+      const events = await pool.querySync(relays, [filter]);
       
       const sortedEvents = events.sort((a, b) => b.created_at - a.created_at);
       setPosts(sortedEvents);

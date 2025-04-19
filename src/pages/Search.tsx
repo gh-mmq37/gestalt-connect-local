@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNostr } from "../hooks/useNostr";
-import { Event } from "nostr-tools";
+import { Event, Filter } from "nostr-tools";
 import { NostrPost } from "../components/Nostr/NostrPost";
 import { UserCard } from "../components/Nostr/UserCard";
 import { Search as SearchIcon, Users, MessageSquare, Hash, Loader2 } from "lucide-react";
@@ -36,19 +36,23 @@ export const Search: React.FC = () => {
     setResults(prev => ({ ...prev, loading: true }));
     
     try {
-      const postResults = await pool.querySync(relays, [{
+      const postFilter: Filter = {
         kinds: [1],
         limit: 40,
-      }]);
+      };
+      
+      const postResults = await pool.querySync(relays, [postFilter]);
       
       const filteredPosts = postResults.filter(event => 
         event.content.toLowerCase().includes(searchQuery.toLowerCase())
       );
       
-      const profileResults = await pool.querySync(relays, [{
+      const profileFilter: Filter = {
         kinds: [0],
         limit: 20,
-      }]);
+      };
+      
+      const profileResults = await pool.querySync(relays, [profileFilter]);
       
       const filteredProfiles = profileResults.filter(event => {
         try {
