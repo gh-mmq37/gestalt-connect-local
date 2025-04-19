@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useEffect, ReactNode } from "react";
 import { SimplePool, Event, Filter, nip19 } from "nostr-tools";
 import { useLocalStorage } from "../hooks/useLocalStorage";
@@ -138,23 +137,15 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
 
     try {
       // Create subscription handlers
-      const subscriptions: any[] = [];
+      const subscription = pool.subscribe(relays, filters);
       
-      filters.forEach(filter => {
-        // Use subscribe() instead of sub()
-        const sub = pool.subscribe(relays, [filter]);
-        sub.on('event', onEvent);
-        subscriptions.push(sub);
-      });
+      // Set up event handler
+      subscription.on('event', onEvent);
       
       // Return a unified subscription object
       return {
         unsub: () => {
-          subscriptions.forEach(sub => {
-            if (sub && typeof sub.unsub === 'function') {
-              sub.unsub();
-            }
-          });
+          subscription.close();
         },
         on: (_event: string, _callback: (event: Event) => void) => {},
         off: (_event: string, _callback: (event: Event) => void) => {}
