@@ -1,5 +1,5 @@
 
-import { Event, Filter } from "nostr-tools";
+import { Event, Filter, SimplePool } from "nostr-tools";
 
 export interface NostrKeys {
   privateKey: string;
@@ -31,7 +31,7 @@ export interface BookmarkLists {
 }
 
 export interface NostrContextType {
-  pool: any | null;
+  pool: SimplePool | null;
   relays: string[];
   addRelay: (relay: string) => void;
   removeRelay: (relay: string) => void;
