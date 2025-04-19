@@ -19,7 +19,7 @@ interface NostrKeys {
   nsec: string;
 }
 
-// Define the type for subscription returned from pool.sub()
+// Define the type for subscription
 type Subscription = {
   unsub: () => void;
   on: (event: string, callback: (event: Event) => void) => void;
@@ -102,9 +102,25 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     if (!pool || !keys?.privateKey) return null;
 
     try {
-      // SimplePool.publish expects (relays, event, privateKey)
-      const event = await pool.publish(relays, eventData);
-      return event as Event;
+      // Create a complete event with required fields
+      const completeEvent: Event = {
+        ...eventData as any,
+        pubkey: keys.publicKey,
+        id: '',
+        sig: '',
+        kind: eventData.kind || 1,
+        created_at: eventData.created_at || Math.floor(Date.now() / 1000),
+        content: eventData.content || '',
+        tags: eventData.tags || []
+      };
+      
+      // Publish event to relays
+      const pub = pool.publish(relays, completeEvent);
+      
+      // Wait for at least one relay to confirm
+      await Promise.race(pub);
+      
+      return completeEvent;
     } catch (error) {
       console.error("Failed to publish event:", error);
       return null;
@@ -115,22 +131,29 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     if (!pool) return null;
 
     try {
-      // Create a custom subscription object that matches the expected interface
-      const sub = {
-        unsub: () => {},
-        on: (_event: string, _callback: (event: Event) => void) => {},
-        off: (_event: string, _callback: (event: Event) => void) => {},
-      };
-
-      // Set up event listeners for each filter
+      // Create subscription handlers
+      const subscriptions: any[] = [];
+      
       filters.forEach(filter => {
-        pool.subscribe(relays, [filter], {
+        const sub = pool.subscribe(relays, [filter], {
           onevent: onEvent,
           oneose: () => {}
         });
+        subscriptions.push(sub);
       });
-
-      return sub;
+      
+      // Return a unified subscription object
+      return {
+        unsub: () => {
+          subscriptions.forEach(sub => {
+            if (sub && typeof sub.close === 'function') {
+              sub.close();
+            }
+          });
+        },
+        on: (_event: string, _callback: (event: Event) => void) => {},
+        off: (_event: string, _callback: (event: Event) => void) => {}
+      };
     } catch (error) {
       console.error("Failed to subscribe to events:", error);
       return null;
@@ -141,7 +164,7 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     if (!pool) return [];
 
     try {
-      // Using querySync API for profile events
+      // Create filter for profile events
       const filter: Filter = {
         kinds: [0],
         authors: pubkeys,
@@ -162,15 +185,13 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
       const following = await getFollowing();
       
       // If not following anyone, just get recent global posts
-      const authors = following.length ? following : undefined;
-      
       const filter: Filter = {
         kinds: [1],
         limit,
       };
       
-      if (authors) {
-        filter.authors = authors;
+      if (following.length) {
+        filter.authors = following;
       }
       
       return await pool.querySync(relays, [filter]);

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useNostr } from "../hooks/useNostr";
@@ -99,7 +98,7 @@ export const Profile: React.FC = () => {
     }
   };
   
-  const handleFollowToggle = async () => {
+  function handleFollowToggle() {
     if (!keys || isUserProfile) return;
     
     setIsLoading(true);
@@ -121,9 +120,9 @@ export const Profile: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }
   
-  const handleUpdateProfile = async () => {
+  function handleUpdateProfile() {
     if (!isUserProfile || !keys) return;
     
     try {
@@ -134,15 +133,15 @@ export const Profile: React.FC = () => {
     } catch (error) {
       console.error("Error updating profile:", error);
     }
-  };
+  }
   
-  const getJoinedDate = () => {
+  function getJoinedDate() {
     if (posts.length) {
       const earliestPost = [...posts].sort((a, b) => a.created_at - b.created_at)[0];
       return format(new Date(earliestPost.created_at * 1000), "MMMM yyyy");
     }
     return "Unknown";
-  };
+  }
   
   const profile = targetPubkey ? profileData[targetPubkey] || {} : {};
   const displayName = profile.name || profile.display_name || "Anonymous";
