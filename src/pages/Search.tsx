@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNostr } from "../hooks/useNostr";
 import { Event, Filter } from "nostr-tools";
@@ -42,8 +41,7 @@ export const Search: React.FC = () => {
         limit: 40,
       };
       
-      // Fixed: Pass a single filter object, not an array
-      const postResults = await pool.querySync(relays, [postFilter]);
+      const postResults = await pool.querySync(relays, postFilter);
       
       const filteredPosts = postResults.filter(event => 
         event.content.toLowerCase().includes(searchQuery.toLowerCase())
@@ -54,8 +52,7 @@ export const Search: React.FC = () => {
         limit: 20,
       };
       
-      // Fixed: Pass a single filter object, not an array
-      const profileResults = await pool.querySync(relays, [profileFilter]);
+      const profileResults = await pool.querySync(relays, profileFilter);
       
       const filteredProfiles = profileResults.filter(event => {
         try {

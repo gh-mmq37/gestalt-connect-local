@@ -30,16 +30,16 @@ export const Explore: React.FC = () => {
             kinds: [1],
             limit: 30,
           };
-          // Fixed: Pass a single filter object, not an array
-          events = await pool.querySync(relays, [trendingFilter]);
+          // Important: Don't wrap filter in array when passing to querySync
+          events = await pool.querySync(relays, trendingFilter);
           break;
         case "global":
           const globalFilter: Filter = {
             kinds: [1],
             limit: 30,
           };
-          // Fixed: Pass a single filter object, not an array
-          events = await pool.querySync(relays, [globalFilter]);
+          // Important: Don't wrap filter in array when passing to querySync
+          events = await pool.querySync(relays, globalFilter);
           break;
         case "local":
           // In a real app, would filter by location tags
@@ -48,8 +48,8 @@ export const Explore: React.FC = () => {
             limit: 30,
             "#t": ["local"]
           };
-          // Fixed: Pass a single filter object, not an array
-          events = await pool.querySync(relays, [localFilter]);
+          // Important: Don't wrap filter in array when passing to querySync
+          events = await pool.querySync(relays, localFilter);
           break;
       }
       

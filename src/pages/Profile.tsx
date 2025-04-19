@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useNostr } from "../hooks/useNostr";
@@ -87,7 +88,8 @@ export const Profile: React.FC = () => {
         limit: 30,
       };
       
-      const events = await pool.querySync(relays, [filter]);
+      // Important: Don't wrap filter in array when passing to querySync
+      const events = await pool.querySync(relays, filter);
       
       const sortedEvents = events.sort((a, b) => b.created_at - a.created_at);
       setPosts(sortedEvents);
