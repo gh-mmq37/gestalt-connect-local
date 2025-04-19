@@ -131,8 +131,14 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     try {
       // Create subscriptions for each filter
       const subs = filters.map(filter => 
-        pool.subscribe(relays, [filter], { skipVerification: false })
+        // Pass a single filter to subscribe, not an array of filters
+        pool.subscribe(relays, filter, { skipVerification: false })
       );
+      
+      // Set up event handlers immediately
+      subs.forEach(sub => {
+        sub.onEvent(onEvent);
+      });
       
       // Create a composite subscription handler
       return {
@@ -141,17 +147,20 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
         },
         on: (event: string, callback: (event: Event) => void) => {
           if (event === 'event') {
-            // Set up event handlers on each subscription
+            // Replace existing handlers with new ones
             subs.forEach(sub => {
-              sub.on('event', callback);
+              // SubCloser doesn't have 'on' method, use onEvent instead
+              sub.onEvent(callback);
             });
           }
         },
         off: (event: string, callback: (event: Event) => void) => {
           if (event === 'event') {
-            // Remove event handlers from each subscription
+            // Since we can't directly remove specific handlers with SubCloser,
+            // we'll need to close the subscriptions and recreate them without the callback
+            // This is a simplified approach
             subs.forEach(sub => {
-              sub.off('event', callback);
+              sub.close();
             });
           }
         }
