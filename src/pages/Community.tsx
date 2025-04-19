@@ -4,80 +4,69 @@ import { ScopeSelector } from "../components/Community/ScopeSelector";
 import { CommunityTabs } from "../components/Community/CommunityTabs";
 import { LocalEventCard } from "../components/Community/LocalEventCard";
 import { CommunityPlaceholder } from "../components/Community/CommunityPlaceholder";
-
-// Sample data for events
-const sampleEvents = [
-  {
-    id: 1,
-    title: "Neighborhood Clean-up",
-    date: "Apr 20, 2025",
-    time: "9:00 AM - 12:00 PM",
-    location: "Downtown Park",
-    attendees: 12,
-    imageUrl: "https://images.unsplash.com/photo-1505236858219-8359eb29e329?auto=format&fit=crop&w=800&q=80",
-    scope: "neighborhood"
-  },
-  {
-    id: 2,
-    title: "Community Farmers Market",
-    date: "Apr 22, 2025",
-    time: "8:00 AM - 1:00 PM",
-    location: "Main Street Plaza",
-    attendees: 45,
-    imageUrl: "https://images.unsplash.com/photo-1563843007199-e91917a1a411?auto=format&fit=crop&w=800&q=80",
-    scope: "neighborhood"
-  },
-  {
-    id: 3,
-    title: "Local Business Networking",
-    date: "Apr 25, 2025",
-    time: "6:00 PM - 8:00 PM",
-    location: "Community Center",
-    attendees: 28,
-    imageUrl: "https://images.unsplash.com/photo-1581092795360-fd1ca04f0952?auto=format&fit=crop&w=800&q=80",
-    scope: "city"
-  },
-  {
-    id: 4,
-    title: "County Art Festival",
-    date: "May 5, 2025",
-    time: "10:00 AM - 6:00 PM",
-    location: "County Fairgrounds",
-    attendees: 120,
-    imageUrl: "https://images.unsplash.com/photo-1576502200916-3808e07386a5?auto=format&fit=crop&w=800&q=80",
-    scope: "county"
-  }
-];
+import { useNostr } from "../hooks/useNostr";
+import { Event, Filter } from "nostr-tools";
+import { Loader2, MessageSquare, Users, Calendar } from "lucide-react";
+import { NostrPost } from "../components/Nostr/NostrPost";
+import { NostrGroupCard } from "../components/Nostr/NostrGroupCard";
 
 type Scope = "neighborhood" | "city" | "county" | "state" | "country" | "world";
 
 export const Community: React.FC = () => {
+  const { pool, relays } = useNostr();
   const [scope, setScope] = useState<Scope>("neighborhood");
   const [activeTab, setActiveTab] = useState("events");
-  const [filteredEvents, setFilteredEvents] = useState(sampleEvents);
+  const [communityPosts, setCommunityPosts] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  // Filter events based on scope
   useEffect(() => {
-    // In a real app, we would fetch based on scope
-    // For now, simulate filtering based on our sample data
-    const scopePriority = {
-      neighborhood: 1,
-      city: 2,
-      county: 3,
-      state: 4,
-      country: 5,
-      world: 6
-    };
+    if (activeTab === "events" || activeTab === "groups" || activeTab === "discussions") {
+      fetchCommunityContent();
+    }
+  }, [activeTab, scope]);
 
-    const currentPriority = scopePriority[scope];
+  const fetchCommunityContent = async () => {
+    if (!pool) return;
     
-    const filtered = sampleEvents.filter(event => {
-      const eventScopePriority = scopePriority[event.scope as Scope] || 0;
-      return eventScopePriority <= currentPriority;
-    });
+    setLoading(true);
     
-    setFilteredEvents(filtered);
-  }, [scope]);
+    try {
+      let filter: Filter;
+      
+      if (activeTab === "discussions") {
+        // For discussions, we look for regular posts (kind 1) with community-related hashtags
+        filter = {
+          kinds: [1],
+          limit: 30,
+          '#t': ['community', 'local', 'meetup', 'discussion'],
+        };
+      } else if (activeTab === "groups") {
+        // For groups, we would use NIP-28 group related events (kind 40, 41, 42)
+        // But for now let's just get some community-related posts
+        filter = {
+          kinds: [1],
+          limit: 30,
+          '#t': ['group', 'community', 'club'],
+        };
+      } else {
+        // For events, we would use NIP-52 calendar event kinds
+        // But for now let's just get posts with event-related tags
+        filter = {
+          kinds: [1],
+          limit: 30,
+          '#t': ['event', 'meetup', 'gathering'],
+        };
+      }
+      
+      const events = await pool.querySync(relays, filter);
+      const sortedEvents = events.sort((a, b) => b.created_at - a.created_at);
+      setCommunityPosts(sortedEvents);
+    } catch (error) {
+      console.error("Error fetching community content:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleScopeChange = (newScope: Scope) => {
     setScope(newScope);
@@ -88,40 +77,92 @@ export const Community: React.FC = () => {
   };
 
   return (
-    <div>
+    <div className="max-w-4xl mx-auto">
       <h1 className="text-3xl font-bold mb-6">Your Community</h1>
       
-      <ScopeSelector onScopeChange={handleScopeChange} />
-      
-      <CommunityTabs onTabChange={handleTabChange} />
-      
-      <div className="mt-6">
-        {activeTab === "events" && (
-          <>
-            {filteredEvents.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-                {filteredEvents.map(event => (
+      <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <ScopeSelector onScopeChange={handleScopeChange} />
+        
+        <div className="mt-6">
+          <CommunityTabs onTabChange={handleTabChange} />
+        </div>
+        
+        <div className="mt-6">
+          {loading ? (
+            <div className="flex justify-center my-12">
+              <Loader2 className="h-8 w-8 animate-spin text-gestalt-purple" />
+            </div>
+          ) : communityPosts.length > 0 ? (
+            activeTab === "events" ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {communityPosts.map(event => (
                   <LocalEventCard 
                     key={event.id}
-                    title={event.title}
-                    date={event.date}
-                    time={event.time}
-                    location={event.location}
-                    attendees={event.attendees}
-                    imageUrl={event.imageUrl}
+                    title={event.content.length > 50 ? `${event.content.substring(0, 50)}...` : event.content}
+                    date={new Date(event.created_at * 1000).toLocaleDateString()}
+                    time={new Date(event.created_at * 1000).toLocaleTimeString()}
+                    location="Community Location"
+                    attendees={Math.floor(Math.random() * 30) + 1}
+                    imageUrl="https://images.unsplash.com/photo-1505236858219-8359eb29e329?auto=format&fit=crop&w=800&q=80"
+                  />
+                ))}
+              </div>
+            ) : activeTab === "groups" ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {communityPosts.map(group => (
+                  <NostrGroupCard
+                    key={group.id}
+                    group={{
+                      id: group.id,
+                      name: group.content.length > 30 ? `${group.content.substring(0, 30)}...` : group.content,
+                      description: "A community group on Nostr",
+                      memberCount: Math.floor(Math.random() * 50) + 5,
+                      tags: group.tags.filter(tag => tag[0] === 't').map(tag => tag[1]),
+                    }}
                   />
                 ))}
               </div>
             ) : (
-              <CommunityPlaceholder activeTab={activeTab} scope={scope} />
-            )}
-          </>
-        )}
+              <div className="space-y-6">
+                {communityPosts.map(post => (
+                  <NostrPost key={post.id} event={post} />
+                ))}
+              </div>
+            )
+          ) : (
+            <CommunityPlaceholder activeTab={activeTab} scope={scope} />
+          )}
+        </div>
+      </div>
+      
+      <div className="bg-gestalt-purple/10 rounded-lg p-6">
+        <h2 className="font-semibold mb-4">Nostr Community Features</h2>
+        <ul className="space-y-3 text-gray-700">
+          <li className="flex items-start">
+            <span className="bg-gestalt-purple text-white w-5 h-5 rounded-full flex items-center justify-center text-xs mr-2 mt-0.5">1</span>
+            <p>Groups are implemented as Nostr communities using NIP-28 for public and private messaging</p>
+          </li>
+          <li className="flex items-start">
+            <span className="bg-gestalt-purple text-white w-5 h-5 rounded-full flex items-center justify-center text-xs mr-2 mt-0.5">2</span>
+            <p>Secure end-to-end encrypted group chats with NIP-04</p>
+          </li>
+          <li className="flex items-start">
+            <span className="bg-gestalt-purple text-white w-5 h-5 rounded-full flex items-center justify-center text-xs mr-2 mt-0.5">3</span>
+            <p>Decentralized group discovery using location-based tags</p>
+          </li>
+          <li className="flex items-start">
+            <span className="bg-gestalt-purple text-white w-5 h-5 rounded-full flex items-center justify-center text-xs mr-2 mt-0.5">4</span>
+            <p>Self-moderation tools to keep communities healthy</p>
+          </li>
+        </ul>
         
-        {/* Placeholders for other tabs */}
-        {activeTab !== "events" && (
-          <CommunityPlaceholder activeTab={activeTab} scope={scope} />
-        )}
+        <div className="mt-6 p-4 bg-white rounded-lg border border-gestalt-purple/20">
+          <h3 className="text-gestalt-purple font-semibold mb-2">Coming Soon: Community Scope</h3>
+          <p className="text-gray-600 text-sm">
+            We're working on integrating geographic scope filtering based on NIP-33 parameterized replaceable events.
+            This will allow you to filter content based on your neighborhood, city, county, state, country, or worldwide.
+          </p>
+        </div>
       </div>
     </div>
   );

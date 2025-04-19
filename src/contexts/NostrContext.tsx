@@ -1,6 +1,6 @@
 
 import React, { createContext, useState, useEffect, ReactNode } from "react";
-import { SimplePool, Event, Filter } from "nostr-tools";
+import { SimplePool, Event, Filter, nip19 } from "nostr-tools";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 
 // Default relays
@@ -40,10 +40,14 @@ interface NostrContextType {
   followUser: (pubkey: string) => Promise<boolean>;
   unfollowUser: (pubkey: string) => Promise<boolean>;
   getFollowing: () => Promise<string[]>;
+  getFollowers: (pubkey?: string) => Promise<string[]>;
   profileData: Record<string, any>;
   refreshProfileData: (pubkey?: string) => Promise<void>;
   userFollows: string[];
   refreshFollows: () => Promise<void>;
+  saveProfileChanges: (profile: any) => Promise<boolean>;
+  bookmarkPost: (eventId: string, isPrivate?: boolean) => Promise<boolean>;
+  getBookmarks: () => Promise<{ public: string[], private: string[] }>;
 }
 
 export const NostrContext = createContext<NostrContextType | null>(null);
@@ -59,6 +63,8 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
   const [keys, setKeys] = useState<NostrKeys | null>(null);
   const [profileData, setProfileData] = useState<Record<string, any>>({});
   const [userFollows, setUserFollows] = useState<string[]>([]);
+  const [bookmarks, setBookmarks] = useLocalStorage("nostrBookmarks", { public: [], private: [] });
+  const [profileDataFetched, setProfileDataFetched] = useState<Set<string>>(new Set());
 
   // Initialize the pool and keys
   useEffect(() => {
@@ -135,11 +141,8 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
       const subscriptions: any[] = [];
       
       filters.forEach(filter => {
-        // Important: Don't wrap filter in array when passing to subscribe
-        const sub = pool.subscribe(relays, filter, {
-          onevent: onEvent,
-          oneose: () => {}
-        });
+        const sub = pool.sub(relays, [filter]);
+        sub.on('event', onEvent);
         subscriptions.push(sub);
       });
       
@@ -147,8 +150,8 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
       return {
         unsub: () => {
           subscriptions.forEach(sub => {
-            if (sub && typeof sub.close === 'function') {
-              sub.close();
+            if (sub && typeof sub.unsub === 'function') {
+              sub.unsub();
             }
           });
         },
@@ -162,7 +165,7 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
   };
 
   const getProfileEvents = async (pubkeys: string[]): Promise<Event[]> => {
-    if (!pool) return [];
+    if (!pool || pubkeys.length === 0) return [];
 
     try {
       // Create filter for profile events
@@ -171,7 +174,6 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
         authors: pubkeys,
       };
       
-      // Important: Don't wrap filter in array when passing to querySync
       return await pool.querySync(relays, filter);
     } catch (error) {
       console.error("Failed to get profile events:", error);
@@ -196,7 +198,6 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
         filter.authors = following;
       }
       
-      // Important: Don't wrap filter in array when passing to querySync
       return await pool.querySync(relays, filter);
     } catch (error) {
       console.error("Failed to get post events:", error);
@@ -209,7 +210,6 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
 
     try {
       const filter: Filter = { ids: [id] };
-      // Important: Don't wrap filter in array when passing to querySync
       const events = await pool.querySync(relays, filter);
       return events.length > 0 ? events[0] : null;
     } catch (error) {
@@ -227,7 +227,6 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
         authors: [keys.publicKey],
       };
       
-      // Important: Don't wrap filter in array when passing to querySync
       const events = await pool.querySync(relays, filter);
 
       if (!events.length) return [];
@@ -243,6 +242,27 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
       return pubkeys;
     } catch (error) {
       console.error("Failed to get following:", error);
+      return [];
+    }
+  };
+
+  const getFollowers = async (pubkey?: string): Promise<string[]> => {
+    if (!pool) return [];
+
+    const targetPubkey = pubkey || keys?.publicKey;
+    if (!targetPubkey) return [];
+
+    try {
+      const filter: Filter = {
+        kinds: [3],
+        '#p': [targetPubkey],
+      };
+      
+      const events = await pool.querySync(relays, filter);
+      
+      return events.map(event => event.pubkey);
+    } catch (error) {
+      console.error("Failed to get followers:", error);
       return [];
     }
   };
@@ -329,15 +349,36 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     if (!pool) return;
 
     try {
-      const pubkeys = pubkey ? [pubkey] : (userFollows.length ? [...userFollows] : []);
+      let pubkeys: string[] = [];
       
-      if (keys?.publicKey && !pubkeys.includes(keys.publicKey)) {
-        pubkeys.push(keys.publicKey);
+      if (pubkey) {
+        // If we've already fetched this profile recently, skip
+        if (profileDataFetched.has(pubkey)) {
+          return;
+        }
+        pubkeys = [pubkey];
+        
+        // Mark this pubkey as fetched
+        setProfileDataFetched(prev => {
+          const updated = new Set(prev);
+          updated.add(pubkey);
+          return updated;
+        });
+      } else {
+        // Get all follows to fetch their profiles
+        pubkeys = await getFollowing();
+        
+        // Add the user's own pubkey if available
+        if (keys?.publicKey && !pubkeys.includes(keys.publicKey)) {
+          pubkeys.push(keys.publicKey);
+        }
       }
       
-      if (!pubkeys.length) return;
+      if (pubkeys.length === 0) return;
       
       const profileEvents = await getProfileEvents(pubkeys);
+      
+      if (profileEvents.length === 0) return;
       
       const newProfileData = { ...profileData };
       
@@ -356,6 +397,72 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     }
   };
 
+  const saveProfileChanges = async (profile: any): Promise<boolean> => {
+    if (!pool || !keys?.privateKey) return false;
+
+    try {
+      const event = await publishEvent({
+        kind: 0,
+        content: JSON.stringify(profile),
+        tags: [],
+        created_at: Math.floor(Date.now() / 1000),
+      });
+
+      if (event) {
+        // Update local profile data
+        const newProfileData = { ...profileData };
+        newProfileData[keys.publicKey] = profile;
+        setProfileData(newProfileData);
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.error("Failed to save profile changes:", error);
+      return false;
+    }
+  };
+
+  const bookmarkPost = async (eventId: string, isPrivate: boolean = false): Promise<boolean> => {
+    if (!keys?.publicKey) return false;
+
+    try {
+      const category = isPrivate ? 'private' : 'public';
+      const currentBookmarks = [...bookmarks[category]];
+      
+      // Check if already bookmarked
+      if (currentBookmarks.includes(eventId)) return true;
+      
+      // Add new bookmark
+      const newBookmarks = { ...bookmarks };
+      newBookmarks[category] = [...currentBookmarks, eventId];
+      
+      // Save bookmarks
+      setBookmarks(newBookmarks);
+      
+      // For public bookmarks, publish to the network
+      if (!isPrivate) {
+        await publishEvent({
+          kind: 30001, // Bookmark list
+          content: 'Bookmarks',
+          tags: [
+            ['d', 'bookmarks'],
+            ['e', eventId]
+          ],
+        });
+      }
+      
+      return true;
+    } catch (error) {
+      console.error("Failed to bookmark post:", error);
+      return false;
+    }
+  };
+
+  const getBookmarks = async (): Promise<{ public: string[], private: string[] }> => {
+    return bookmarks;
+  };
+
   return (
     <NostrContext.Provider
       value={{
@@ -372,10 +479,14 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
         followUser,
         unfollowUser,
         getFollowing,
+        getFollowers,
         profileData,
         refreshProfileData,
         userFollows,
         refreshFollows,
+        saveProfileChanges,
+        bookmarkPost,
+        getBookmarks,
       }}
     >
       {children}

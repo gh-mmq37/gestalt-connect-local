@@ -11,7 +11,11 @@ import {
   UserPlus,
   UserCheck,
   MessageSquare,
-  Loader2
+  Loader2,
+  Users,
+  Bookmark,
+  MoreHorizontal,
+  Copy
 } from "lucide-react";
 import { NostrPost } from "../components/Nostr/NostrPost";
 import { CreatePost } from "../components/Nostr/CreatePost";
@@ -19,6 +23,7 @@ import { Event, Filter } from "nostr-tools";
 import { nip19 } from "nostr-tools";
 import { format } from "date-fns";
 import { toast } from "@/components/ui/use-toast";
+import { EditProfileModal } from "../components/Nostr/EditProfileModal";
 
 export const Profile: React.FC = () => {
   const { npub } = useParams<{ npub: string }>();
@@ -31,6 +36,7 @@ export const Profile: React.FC = () => {
     userFollows, 
     followUser, 
     unfollowUser,
+    getFollowers,
     publishEvent 
   } = useNostr();
   
@@ -41,6 +47,9 @@ export const Profile: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [posts, setPosts] = useState<Event[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(false);
+  const [followers, setFollowers] = useState<string[]>([]);
+  const [showEditProfileModal, setShowEditProfileModal] = useState(false);
+  const [showFullNpub, setShowFullNpub] = useState(false);
   
   useEffect(() => {
     const initProfile = async () => {
@@ -73,6 +82,7 @@ export const Profile: React.FC = () => {
       setIsFollowing(userFollows.includes(targetPubkey));
       refreshProfileData(targetPubkey);
       fetchUserPosts();
+      fetchFollowers();
     }
   }, [targetPubkey, userFollows]);
   
@@ -88,7 +98,6 @@ export const Profile: React.FC = () => {
         limit: 30,
       };
       
-      // Important: Don't wrap filter in array when passing to querySync
       const events = await pool.querySync(relays, filter);
       
       const sortedEvents = events.sort((a, b) => b.created_at - a.created_at);
@@ -97,6 +106,17 @@ export const Profile: React.FC = () => {
       console.error("Error fetching user posts:", error);
     } finally {
       setLoadingPosts(false);
+    }
+  };
+
+  const fetchFollowers = async () => {
+    if (!targetPubkey) return;
+    
+    try {
+      const followersList = await getFollowers(targetPubkey);
+      setFollowers(followersList);
+    } catch (error) {
+      console.error("Error fetching followers:", error);
     }
   };
   
@@ -110,11 +130,13 @@ export const Profile: React.FC = () => {
         const success = await unfollowUser(targetPubkey);
         if (success) {
           setIsFollowing(false);
+          setFollowers(prev => prev.filter(f => f !== keys.publicKey));
         }
       } else {
         const success = await followUser(targetPubkey);
         if (success) {
           setIsFollowing(true);
+          setFollowers(prev => [...prev, keys.publicKey]);
         }
       }
     } catch (error) {
@@ -124,18 +146,26 @@ export const Profile: React.FC = () => {
     }
   };
   
-  function handleUpdateProfile() {
+  const handleUpdateProfile = () => {
     if (!isUserProfile || !keys) return;
     
+    setShowEditProfileModal(true);
+  };
+
+  const handleCopyNpub = () => {
+    if (!targetPubkey) return;
+    
     try {
+      const npubToCopy = nip19.npubEncode(targetPubkey);
+      navigator.clipboard.writeText(npubToCopy);
       toast({
-        title: "Coming Soon",
-        description: "Profile editing will be available soon!",
+        title: "Copied to clipboard",
+        description: "Npub has been copied to your clipboard.",
       });
     } catch (error) {
-      console.error("Error updating profile:", error);
+      console.error("Error copying npub:", error);
     }
-  }
+  };
   
   function getJoinedDate() {
     if (posts.length) {
@@ -147,7 +177,18 @@ export const Profile: React.FC = () => {
   
   const profile = targetPubkey ? profileData[targetPubkey] || {} : {};
   const displayName = profile.name || profile.display_name || "Anonymous";
-  const username = profile.nip05 || (targetPubkey ? `${targetPubkey.slice(0, 8)}...${targetPubkey.slice(-4)}` : "");
+  
+  let username = "";
+  if (showFullNpub && targetPubkey) {
+    try {
+      username = nip19.npubEncode(targetPubkey);
+    } catch (error) {
+      username = targetPubkey;
+    }
+  } else {
+    username = profile.nip05 || (targetPubkey ? `${targetPubkey.slice(0, 8)}...${targetPubkey.slice(-4)}` : "");
+  }
+  
   const avatar = profile.picture || `https://avatars.dicebear.com/api/initials/${displayName.charAt(0)}.svg`;
   const about = profile.about || "";
   const website = profile.website || "";
@@ -170,7 +211,28 @@ export const Profile: React.FC = () => {
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div>
                     <h1 className="text-2xl font-bold">{displayName}</h1>
-                    <p className="text-gray-600">{username}</p>
+                    <div className="flex items-center gap-2 text-gray-600">
+                      <span 
+                        className="cursor-pointer hover:text-gestalt-purple"
+                        onClick={() => setShowFullNpub(!showFullNpub)}
+                      >
+                        {username}
+                      </span>
+                      <Copy 
+                        className="h-4 w-4 cursor-pointer hover:text-gestalt-purple" 
+                        onClick={handleCopyNpub}
+                      />
+                    </div>
+                    <div className="flex items-center gap-3 mt-1 text-sm">
+                      <div className="flex items-center">
+                        <span className="font-semibold">{userFollows.length}</span>
+                        <span className="ml-1 text-gray-600">Following</span>
+                      </div>
+                      <div className="flex items-center">
+                        <span className="font-semibold">{followers.length}</span>
+                        <span className="ml-1 text-gray-600">Followers</span>
+                      </div>
+                    </div>
                   </div>
                   
                   {keys && (
@@ -209,7 +271,7 @@ export const Profile: React.FC = () => {
                 </div>
                 
                 {about && (
-                  <p className="mt-2 max-w-md">{about}</p>
+                  <p className="mt-2 max-w-md break-words">{about}</p>
                 )}
                 
                 <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mt-3 text-sm text-gray-600">
@@ -267,6 +329,29 @@ export const Profile: React.FC = () => {
                 <MessageSquare className="h-4 w-4 mr-2" />
                 Replies
               </button>
+              <button
+                onClick={() => setActiveTab("following")}
+                className={`py-4 px-6 text-center border-b-2 font-medium text-sm flex items-center ${
+                  activeTab === "following"
+                    ? "border-gestalt-purple text-gestalt-purple-dark"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                }`}
+              >
+                <Users className="h-4 w-4 mr-2" />
+                Following
+              </button>
+              <button
+                onClick={() => setActiveTab("bookmarks")}
+                className={`py-4 px-6 text-center border-b-2 font-medium text-sm flex items-center ${
+                  activeTab === "bookmarks" && isUserProfile
+                    ? "border-gestalt-purple text-gestalt-purple-dark"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                }`}
+                disabled={!isUserProfile}
+              >
+                <Bookmark className="h-4 w-4 mr-2" />
+                Bookmarks
+              </button>
             </nav>
           </div>
 
@@ -296,20 +381,53 @@ export const Profile: React.FC = () => {
                   </p>
                 </div>
               )
-            ) : (
+            ) : activeTab === "replies" ? (
               <div className="text-center my-12 p-6 bg-gestalt-purple/5 rounded-lg">
                 <h3 className="text-xl font-semibold mb-2">Coming Soon</h3>
                 <p className="text-gray-600">
                   Replies section will be available soon!
                 </p>
               </div>
-            )}
+            ) : activeTab === "following" ? (
+              userFollows.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                  <p>Following list will be displayed here.</p>
+                </div>
+              ) : (
+                <div className="text-center my-12 p-6 bg-gestalt-purple/5 rounded-lg">
+                  <h3 className="text-xl font-semibold mb-2">Not following anyone yet</h3>
+                  <p className="text-gray-600">
+                    {isUserProfile 
+                      ? "Explore the community to find interesting people to follow!" 
+                      : `${displayName} isn't following anyone yet.`}
+                  </p>
+                </div>
+              )
+            ) : activeTab === "bookmarks" && isUserProfile ? (
+              <div className="text-center my-12 p-6 bg-gestalt-purple/5 rounded-lg">
+                <h3 className="text-xl font-semibold mb-2">Bookmarks</h3>
+                <p className="text-gray-600">
+                  Your bookmarked posts will appear here.
+                </p>
+              </div>
+            ) : null}
           </div>
         </div>
       ) : (
         <div className="flex justify-center my-12">
           <Loader2 className="h-8 w-8 animate-spin text-gestalt-purple" />
         </div>
+      )}
+
+      {showEditProfileModal && (
+        <EditProfileModal 
+          currentProfile={profileData[keys?.publicKey || ''] || {}}
+          onClose={() => setShowEditProfileModal(false)}
+          onSave={(profile) => {
+            setShowEditProfileModal(false);
+            refreshProfileData(keys?.publicKey);
+          }}
+        />
       )}
     </div>
   );
