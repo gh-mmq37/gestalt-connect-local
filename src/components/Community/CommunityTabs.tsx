@@ -1,11 +1,11 @@
 
 import React, { useState } from "react";
-import { Calendar, Briefcase, Bell, ShoppingCart, BookOpen } from "lucide-react";
+import { Users, Calendar, MessageSquare, ShoppingCart, BookOpen } from "lucide-react";
 
 const tabs = [
+  { id: "groups", label: "Groups", icon: Users },
   { id: "events", label: "Events", icon: Calendar },
-  { id: "opportunities", label: "Opportunities", icon: Briefcase },
-  { id: "alerts", label: "Alerts", icon: Bell },
+  { id: "discussions", label: "Discussions", icon: MessageSquare },
   { id: "marketplace", label: "Marketplace", icon: ShoppingCart },
   { id: "directory", label: "Directory", icon: BookOpen },
 ];
@@ -15,7 +15,7 @@ interface CommunityTabsProps {
 }
 
 export const CommunityTabs: React.FC<CommunityTabsProps> = ({ onTabChange }) => {
-  const [activeTab, setActiveTab] = useState("events");
+  const [activeTab, setActiveTab] = useState("groups");
 
   const handleTabChange = (tabId: string) => {
     setActiveTab(tabId);

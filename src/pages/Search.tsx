@@ -68,6 +68,14 @@ export const Search: React.FC = () => {
         hashtags: hashtagResults,
         loading: false,
       });
+      
+      // Show search summary toast
+      const totalResults = postResults.length + profileResults.length + hashtagResults.length;
+      toast({
+        title: "Search complete",
+        description: `Found ${totalResults} results for "${searchQuery}"`,
+        duration: 3000,
+      });
     } catch (error) {
       console.error("Search error:", error);
       setResults(prev => ({ ...prev, loading: false }));
@@ -99,12 +107,12 @@ export const Search: React.FC = () => {
             placeholder="Search for posts, people, hashtags..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="w-full px-4 py-3 pl-10 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gestalt-purple focus:border-gestalt-purple"
+            className="w-full px-4 py-3 pl-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gestalt-purple focus:border-gestalt-purple"
           />
           <SearchIcon className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
           <button
             type="submit"
-            className="absolute right-3 top-2 px-3 py-1.5 bg-gestalt-purple text-white rounded-md hover:bg-gestalt-purple-dark"
+            className="absolute right-3 top-2 px-3 py-1.5 bg-gestalt-purple text-white rounded-md hover:bg-gestalt-purple-dark transition-colors"
           >
             Search
           </button>
@@ -123,6 +131,7 @@ export const Search: React.FC = () => {
           >
             <MessageSquare className="h-4 w-4 mr-2" />
             Posts
+            {results.posts.length > 0 && ` (${results.posts.length})`}
           </button>
           <button
             onClick={() => setActiveTab("people")}
@@ -134,6 +143,7 @@ export const Search: React.FC = () => {
           >
             <Users className="h-4 w-4 mr-2" />
             People
+            {results.profiles.length > 0 && ` (${results.profiles.length})`}
           </button>
           <button
             onClick={() => setActiveTab("hashtags")}
@@ -145,6 +155,7 @@ export const Search: React.FC = () => {
           >
             <Hash className="h-4 w-4 mr-2" />
             Hashtags
+            {results.hashtags.length > 0 && ` (${results.hashtags.length})`}
           </button>
         </div>
       </div>
@@ -157,14 +168,17 @@ export const Search: React.FC = () => {
       )}
       
       {results.loading ? (
-        <div className="flex justify-center my-12">
+        <div className="flex flex-col items-center justify-center my-12 space-y-4">
           <Loader2 className="h-8 w-8 animate-spin text-gestalt-purple" />
+          <p className="text-gray-600">Searching Nostr network...</p>
         </div>
       ) : activeTab === "posts" ? (
         <div>
           {query && results.posts.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-gray-500">No posts found for "{query}"</p>
+            <div className="text-center py-12 bg-gray-50 rounded-lg">
+              <MessageSquare className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+              <p className="text-gray-500 font-medium">No posts found for "{query}"</p>
+              <p className="text-gray-400 text-sm mt-2">Try a different search term or check your relay connections</p>
             </div>
           ) : (
             <div className="space-y-6">
@@ -177,8 +191,10 @@ export const Search: React.FC = () => {
       ) : activeTab === "people" ? (
         <div>
           {query && results.profiles.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-gray-500">No people found for "{query}"</p>
+            <div className="text-center py-12 bg-gray-50 rounded-lg">
+              <Users className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+              <p className="text-gray-500 font-medium">No people found for "{query}"</p>
+              <p className="text-gray-400 text-sm mt-2">Try a different search term or check your relay connections</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -191,12 +207,17 @@ export const Search: React.FC = () => {
       ) : (
         <div>
           {query && results.hashtags.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-gray-500">No posts found with hashtag "{query}"</p>
+            <div className="text-center py-12 bg-gray-50 rounded-lg">
+              <Hash className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+              <p className="text-gray-500 font-medium">No posts found with hashtag "{query}"</p>
+              <p className="text-gray-400 text-sm mt-2">Try a different hashtag or check your relay connections</p>
             </div>
           ) : (
             <div className="space-y-6">
-              <h2 className="text-xl font-bold">#{query.startsWith('#') ? query.slice(1) : query}</h2>
+              <h2 className="text-xl font-bold flex items-center">
+                <Hash className="h-5 w-5 mr-1" />
+                {query.startsWith('#') ? query.slice(1) : query}
+              </h2>
               {results.hashtags.map(post => (
                 <NostrPost key={post.id} event={post} />
               ))}

@@ -12,13 +12,14 @@ import {
   X,
   Search,
   Settings,
+  LogOut
 } from "lucide-react";
 import { useNostr } from "../../hooks/useNostr";
+import { LogoutButton } from "../Nostr/LogoutButton";
 
 const navItems = [
   { name: "Feed", path: "/feed", icon: Home },
-  { name: "Community", path: "/community", icon: Users },
-  { name: "Groups", path: "/groups", icon: Users },
+  { name: "Community & Groups", path: "/community", icon: Users },
   { name: "Interests", path: "/interests", icon: Bookmark },
   { name: "Explore", path: "/explore", icon: Map },
   { name: "Profile", path: "/profile", icon: User },
@@ -62,13 +63,13 @@ export const Navigation: React.FC = () => {
           </div>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex space-x-6">
+          <nav className="hidden md:flex space-x-4">
             {navItems.map((item) => (
               <NavLink
                 key={item.name}
                 to={item.path}
                 className={({ isActive }) =>
-                  `flex items-center px-1 py-2 text-sm font-medium transition-colors border-b-2 ${
+                  `flex items-center px-2 py-2 text-sm font-medium transition-colors border-b-2 ${
                     isActive
                       ? "border-gestalt-purple text-gestalt-purple-dark"
                       : "border-transparent text-gray-600 hover:text-gestalt-purple hover:border-gestalt-purple/40"
@@ -79,6 +80,9 @@ export const Navigation: React.FC = () => {
                 {item.name}
               </NavLink>
             ))}
+            <div className="border-l border-gray-300 pl-2">
+              <LogoutButton />
+            </div>
           </nav>
 
           {/* Search icon - visible only on small screens */}
@@ -128,6 +132,11 @@ export const Navigation: React.FC = () => {
                 {item.name}
               </NavLink>
             ))}
+            <div className="border-t border-gray-200 mt-2 pt-2">
+              <div className="px-4 py-2">
+                <LogoutButton />
+              </div>
+            </div>
           </div>
         </div>
       )}

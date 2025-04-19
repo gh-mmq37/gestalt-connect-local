@@ -9,7 +9,6 @@ import { PublicHome } from "./pages/PublicHome";
 import { NostrFeed } from "./pages/NostrFeed";
 import { Community } from "./pages/Community";
 import { Profile } from "./pages/Profile";
-import { Groups } from "./pages/Groups";
 import { Interests } from "./pages/Interests";
 import { Explore } from "./pages/Explore";
 import { Contribute } from "./pages/Contribute";
@@ -49,11 +48,12 @@ const App = () => {
               {/* Authenticated Routes - Require onboarding */}
               <Route 
                 path="/" 
-                element={onboardingComplete ? <MainLayout /> : <Navigate to="/" replace />}
+                element={<MainLayout />}
               >
                 <Route path="/feed" element={<NostrFeed />} />
                 <Route path="/community" element={<Community />} />
-                <Route path="/groups" element={<Groups />} />
+                {/* Redirect /groups to /community */}
+                <Route path="/groups" element={<Navigate to="/community" replace />} />
                 <Route path="/interests" element={<Interests />} />
                 <Route path="/explore" element={<Explore />} />
                 <Route path="/profile" element={<Profile />} />

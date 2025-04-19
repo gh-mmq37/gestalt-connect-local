@@ -6,7 +6,7 @@ import { LocalEventCard } from "../components/Community/LocalEventCard";
 import { CommunityPlaceholder } from "../components/Community/CommunityPlaceholder";
 import { useNostr } from "../hooks/useNostr";
 import { Event, Filter } from "nostr-tools";
-import { Loader2, MessageSquare, Users, Calendar } from "lucide-react";
+import { Loader2, MessageSquare, Users, Calendar, UserPlus } from "lucide-react";
 import { NostrPost } from "../components/Nostr/NostrPost";
 import { NostrGroupCard } from "../components/Nostr/NostrGroupCard";
 
@@ -15,9 +15,10 @@ type Scope = "neighborhood" | "city" | "county" | "state" | "country" | "world";
 export const Community: React.FC = () => {
   const { pool, relays } = useNostr();
   const [scope, setScope] = useState<Scope>("neighborhood");
-  const [activeTab, setActiveTab] = useState("events");
+  const [activeTab, setActiveTab] = useState("groups");
   const [communityPosts, setCommunityPosts] = useState<Event[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showJoinGroupModal, setShowJoinGroupModal] = useState(false);
 
   useEffect(() => {
     if (activeTab === "events" || activeTab === "groups" || activeTab === "discussions") {
@@ -58,6 +59,7 @@ export const Community: React.FC = () => {
         };
       }
       
+      // Use querySync instead of list
       const events = await pool.querySync(relays, filter);
       const sortedEvents = events.sort((a, b) => b.created_at - a.created_at);
       setCommunityPosts(sortedEvents);
@@ -78,7 +80,7 @@ export const Community: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6">Your Community</h1>
+      <h1 className="text-3xl font-bold mb-6">Community & Groups</h1>
       
       <div className="bg-white rounded-lg shadow p-6 mb-6">
         <ScopeSelector onScopeChange={handleScopeChange} />
@@ -86,6 +88,19 @@ export const Community: React.FC = () => {
         <div className="mt-6">
           <CommunityTabs onTabChange={handleTabChange} />
         </div>
+        
+        {/* Groups tab header with create group button */}
+        {activeTab === "groups" && (
+          <div className="mt-6 flex justify-between items-center">
+            <h2 className="text-lg font-semibold">Available Groups</h2>
+            <button
+              className="px-4 py-2 bg-gestalt-purple text-white rounded-md hover:bg-gestalt-purple-dark inline-flex items-center"
+            >
+              <UserPlus className="h-4 w-4 mr-2" />
+              Create Group
+            </button>
+          </div>
+        )}
         
         <div className="mt-6">
           {loading ? (
@@ -136,32 +151,37 @@ export const Community: React.FC = () => {
       </div>
       
       <div className="bg-gestalt-purple/10 rounded-lg p-6">
-        <h2 className="font-semibold mb-4">Nostr Community Features</h2>
+        <h2 className="font-semibold mb-4">Community & Groups Features</h2>
         <ul className="space-y-3 text-gray-700">
           <li className="flex items-start">
             <span className="bg-gestalt-purple text-white w-5 h-5 rounded-full flex items-center justify-center text-xs mr-2 mt-0.5">1</span>
-            <p>Groups are implemented as Nostr communities using NIP-28 for public and private messaging</p>
+            <p>Connect with others in your local area through community groups</p>
           </li>
           <li className="flex items-start">
             <span className="bg-gestalt-purple text-white w-5 h-5 rounded-full flex items-center justify-center text-xs mr-2 mt-0.5">2</span>
-            <p>Secure end-to-end encrypted group chats with NIP-04</p>
+            <p>Join public discussions or create private group chats with end-to-end encryption</p>
           </li>
           <li className="flex items-start">
             <span className="bg-gestalt-purple text-white w-5 h-5 rounded-full flex items-center justify-center text-xs mr-2 mt-0.5">3</span>
-            <p>Decentralized group discovery using location-based tags</p>
+            <p>Find local events and meetups happening in your community</p>
           </li>
           <li className="flex items-start">
             <span className="bg-gestalt-purple text-white w-5 h-5 rounded-full flex items-center justify-center text-xs mr-2 mt-0.5">4</span>
-            <p>Self-moderation tools to keep communities healthy</p>
+            <p>Discover marketplace listings and opportunities from people in your area</p>
           </li>
         </ul>
         
         <div className="mt-6 p-4 bg-white rounded-lg border border-gestalt-purple/20">
-          <h3 className="text-gestalt-purple font-semibold mb-2">Coming Soon: Community Scope</h3>
-          <p className="text-gray-600 text-sm">
-            We're working on integrating geographic scope filtering based on NIP-33 parameterized replaceable events.
-            This will allow you to filter content based on your neighborhood, city, county, state, country, or worldwide.
+          <h3 className="text-gestalt-purple font-semibold mb-2">How Gestalt Groups Work with Nostr</h3>
+          <p className="text-gray-600 text-sm mb-4">
+            Gestalt leverages Nostr's decentralized protocol for secure, censorship-resistant community interactions:
           </p>
+          <ul className="text-sm text-gray-600 space-y-2">
+            <li>• Groups use Nostr NIP-28 for public and private community messaging</li>
+            <li>• Secure end-to-end encrypted group chats with NIP-04</li>
+            <li>• Self-moderation tools to keep communities healthy</li>
+            <li>• Decentralized discovery using location-based tags</li>
+          </ul>
         </div>
       </div>
     </div>

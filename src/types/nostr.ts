@@ -60,4 +60,5 @@ export interface NostrContextType {
   searchContent: (query: string, options?: { kinds?: number[], limit?: number }) => Promise<Event[]>;
   searchProfiles: (query: string, limit?: number) => Promise<Event[]>;
   searchHashtags: (tag: string, limit?: number) => Promise<Event[]>;
+  logout: () => void;
 }

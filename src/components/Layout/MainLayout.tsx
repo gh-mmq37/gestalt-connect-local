@@ -10,13 +10,25 @@ import { useNostr } from "../../hooks/useNostr";
 export const MainLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [onboardingComplete] = useLocalStorage("onboardingComplete", false);
-  const [onboardingData] = useLocalStorage("onboardingData", null);
+  const [onboardingComplete, setOnboardingComplete] = useLocalStorage("onboardingComplete", false);
+  const [onboardingData, setOnboardingData] = useLocalStorage("onboardingData", null);
   const { keys, refreshProfileData, refreshFollows } = useNostr();
 
   useEffect(() => {
-    // Show welcome toast when a user first arrives after completing onboarding
-    if (onboardingComplete && onboardingData) {
+    // Check if we need to redirect to onboarding
+    if (!onboardingComplete || !onboardingData?.nostrKeys) {
+      if (location.pathname !== "/") {
+        // Only show toast if we're not already on the landing page
+        toast({
+          title: "Welcome to Gestalt",
+          description: "Please complete the onboarding process to get started.",
+          duration: 5000,
+        });
+      }
+      // Redirect to onboarding
+      navigate("/", { replace: true });
+    } else {
+      // Show welcome toast when a user first arrives after completing onboarding
       const hasShownWelcome = sessionStorage.getItem("hasShownWelcome");
       if (!hasShownWelcome) {
         toast({
@@ -27,7 +39,7 @@ export const MainLayout: React.FC = () => {
         sessionStorage.setItem("hasShownWelcome", "true");
       }
     }
-  }, [onboardingComplete, onboardingData]);
+  }, [onboardingComplete, onboardingData, location.pathname]);
 
   // Refresh Nostr data when layout mounts
   useEffect(() => {
