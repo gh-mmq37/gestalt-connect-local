@@ -56,8 +56,8 @@ export const NostrFeed: React.FC = () => {
             filter.authors = [customFeed.value];
           }
           
-          // Use query instead of list
-          const events = await pool.query(relays, filter);
+          // Use list instead of query
+          const events = await pool.list(relays, [filter]);
           const sortedEvents = events.sort((a, b) => b.created_at - a.created_at);
           setPosts(sortedEvents);
         }
