@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useEffect, ReactNode } from "react";
 import { SimplePool, Event, Filter, nip19 } from "nostr-tools";
 import { useLocalStorage } from "../hooks/useLocalStorage";
@@ -132,12 +133,13 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
       // Create subscriptions for each filter
       const subs = filters.map(filter => 
         // Pass a single filter to subscribe, not an array of filters
-        pool.subscribe(relays, filter, { skipVerification: false })
+        pool.subscribe(relays, filter)
       );
       
-      // Set up event handlers immediately
+      // Set up event handlers for each subscription
       subs.forEach(sub => {
-        sub.onEvent(onEvent);
+        // Create a callback that will be triggered whenever an event is received
+        sub.on('event', onEvent);
       });
       
       // Create a composite subscription handler
@@ -149,16 +151,14 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
           if (event === 'event') {
             // Replace existing handlers with new ones
             subs.forEach(sub => {
-              // SubCloser doesn't have 'on' method, use onEvent instead
-              sub.onEvent(callback);
+              sub.on('event', callback);
             });
           }
         },
         off: (event: string, callback: (event: Event) => void) => {
           if (event === 'event') {
-            // Since we can't directly remove specific handlers with SubCloser,
-            // we'll need to close the subscriptions and recreate them without the callback
-            // This is a simplified approach
+            // Since we can't directly remove specific handlers,
+            // we'll close the subscriptions and recreate them without the callback
             subs.forEach(sub => {
               sub.close();
             });
