@@ -129,40 +129,29 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     if (!pool) return null;
 
     try {
-      const sub = pool.subscribe(relays, filters, { skipVerification: false });
+      // Create a subscription with each filter
+      const subs = filters.map(filter => 
+        pool.sub(relays, [filter], { skipVerification: false })
+      );
       
-      const eventHandler = (event: Event) => {
-        onEvent(event);
-      };
-      
-      const relayEventListeners: Array<() => void> = [];
-      
-      pool.relays.forEach(relay => {
-        if (relay.status === 1) {
-          relay.on('event', eventHandler);
-          relayEventListeners.push(() => relay.off('event', eventHandler));
-        }
+      // Set up event handlers
+      subs.forEach(sub => {
+        sub.on('event', onEvent);
       });
       
+      // Create a composite subscription handler
       return {
         unsub: () => {
-          sub.close();
-          relayEventListeners.forEach(removeListener => removeListener());
+          subs.forEach(sub => sub.unsub());
         },
         on: (event: string, callback: (event: Event) => void) => {
           if (event === 'event') {
-            pool.relays.forEach(relay => {
-              if (relay.status === 1) {
-                relay.on('event', callback);
-              }
-            });
+            subs.forEach(sub => sub.on('event', callback));
           }
         },
         off: (event: string, callback: (event: Event) => void) => {
           if (event === 'event') {
-            pool.relays.forEach(relay => {
-              relay.off('event', callback);
-            });
+            subs.forEach(sub => sub.off('event', callback));
           }
         }
       };
