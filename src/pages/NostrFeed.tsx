@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { useNostr } from "../hooks/useNostr";
 import { Event, Filter } from "nostr-tools";
@@ -56,7 +55,7 @@ export const NostrFeed: React.FC = () => {
             filter.authors = [customFeed.value];
           }
           
-          // Use querySync with a single filter
+          // Use the corrected API approach - pass a single filter
           const events = await pool.querySync(relays, filter);
           const sortedEvents = events.sort((a, b) => b.created_at - a.created_at);
           setPosts(sortedEvents);
@@ -267,7 +266,6 @@ export const NostrFeed: React.FC = () => {
   );
 };
 
-// User component
 const User = ({ className }: { className?: string }) => {
   return (
     <svg

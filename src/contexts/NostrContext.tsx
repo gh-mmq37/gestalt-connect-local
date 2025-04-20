@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useEffect, ReactNode } from "react";
 import { SimplePool, Event, Filter } from "nostr-tools";
 import { useLocalStorage } from "../hooks/useLocalStorage";
@@ -98,7 +99,9 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     if (!pool) return null;
 
     try {
-      const filter = Array.isArray(filters) && filters.length > 0 ? filters[0] : filters;
+      // Fix: Ensure we're passing a single Filter object to pool.subscribe
+      // If filters is an array, use the first item if available
+      const filter = filters && filters.length > 0 ? filters[0] : filters as Filter;
       
       const sub = pool.subscribe(relays, filter, { 
         onevent: onEvent 
