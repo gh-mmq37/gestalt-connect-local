@@ -56,7 +56,7 @@ export const NostrFeed: React.FC = () => {
             filter.authors = [customFeed.value];
           }
           
-          // Use querySync instead of querySync, which accepts a single filter
+          // Use querySync with a single filter
           const events = await pool.querySync(relays, filter);
           const sortedEvents = events.sort((a, b) => b.created_at - a.created_at);
           setPosts(sortedEvents);

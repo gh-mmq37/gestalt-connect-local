@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useEffect, ReactNode } from "react";
 import { SimplePool, Event, Filter } from "nostr-tools";
 import { useLocalStorage } from "../hooks/useLocalStorage";
@@ -82,10 +81,8 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
         tags: eventData.tags || []
       };
       
-      // Get the event hash and sign using NIP-07 extension if available
       const event = await window.nostr?.signEvent(completeEvent) || completeEvent;
       
-      // Publish to relays
       const pub = pool.publish(relays, event);
       
       await Promise.race(pub);
@@ -101,22 +98,21 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     if (!pool) return null;
 
     try {
-      // Subscribe to events with the filters
-      // For SimplePool.subscribe, we need to pass a single relay URL array, filter array, and options
-      const sub = pool.subscribe(relays, filters, { 
+      const filter = Array.isArray(filters) && filters.length > 0 ? filters[0] : filters;
+      
+      const sub = pool.subscribe(relays, filter, { 
         onevent: onEvent 
       });
       
-      // Return a subscription object matching our interface
       return {
         unsub: () => {
           sub.close();
         },
-        on: (event: string, callback: (event: Event) => void) => {
+        on: (_event: string, _callback: (event: Event) => void) => {
           // This is a no-op for compatibility with the old interface
           // SimplePool's subscription doesn't have direct on/off methods
         },
-        off: (event: string, callback: (event: Event) => void) => {
+        off: (_event: string, _callback: (event: Event) => void) => {
           // This is a no-op for compatibility with the old interface
         }
       };
@@ -131,7 +127,6 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
 
     try {
       const filter = createProfileFilter(pubkeys);
-      // Use querySync instead, which accepts a single filter
       const events = await pool.querySync(relays, filter);
       return events;
     } catch (error) {
@@ -150,7 +145,6 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
         limit
       });
       
-      // Use querySync instead with a single filter
       const events = await pool.querySync(relays, filter);
       return events;
     } catch (error) {
@@ -164,7 +158,6 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
 
     try {
       const filter: Filter = { ids: [id] };
-      // Use querySync instead with a single filter
       const events = await pool.querySync(relays, filter);
       return events.length > 0 ? events[0] : null;
     } catch (error) {
@@ -178,7 +171,6 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
 
     try {
       const filter = createContactsFilter(keys.publicKey);
-      // Use querySync instead with a single filter
       const events = await pool.querySync(relays, filter);
 
       if (!events.length) return [];
@@ -209,7 +201,6 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
         '#p': [targetPubkey],
       };
       
-      // Use querySync instead with a single filter
       const events = await pool.querySync(relays, filter);
       
       return events.map(event => event.pubkey);
@@ -400,7 +391,6 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     
     try {
       const filter = createChannelsFilter();
-      // Use querySync instead with a single filter
       const events = await pool.querySync(relays, filter);
       return events;
     } catch (error) {
@@ -414,7 +404,6 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     
     try {
       const filter = createMarketplaceFilter();
-      // Use querySync instead with a single filter
       const events = await pool.querySync(relays, filter);
       return events;
     } catch (error) {
@@ -430,7 +419,6 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
       const targetPubkey = pubkey || keys.publicKey;
       const filter = createDirectMessageFilter(keys.publicKey, targetPubkey);
       
-      // Use querySync instead with a single filter
       const events = await pool.querySync(relays, filter);
       return events;
     } catch (error) {
@@ -484,10 +472,8 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     
     try {
       const filter = createContentSearchFilter(query, options);
-      // Use querySync instead with a single filter
       const events = await pool.querySync(relays, filter);
       
-      // Client-side filtering since Nostr doesn't have native content search
       return events.filter(event => 
         event.content.toLowerCase().includes(query.toLowerCase())
       );
@@ -501,12 +487,9 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     if (!pool || !query.trim()) return [];
     
     try {
-      // Get all profile metadata we can find
       const filter: Filter = { kinds: [0], limit };
-      // Use querySync instead with a single filter
       const events = await pool.querySync(relays, filter);
       
-      // Filter client-side based on profile data
       return events.filter(event => {
         try {
           const profile = JSON.parse(event.content);
@@ -532,11 +515,9 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
     if (!pool || !tag.trim()) return [];
     
     try {
-      // Clean the tag (remove # if present)
       const cleanTag = tag.startsWith('#') ? tag.substring(1) : tag;
       const filter = createHashtagSearchFilter(cleanTag, limit);
       
-      // Use querySync instead with a single filter
       const events = await pool.querySync(relays, filter);
       return events;
     } catch (error) {
@@ -546,14 +527,11 @@ export const NostrProvider: React.FC<NostrProviderProps> = ({ children }) => {
   };
 
   const logout = () => {
-    // Clear the onboarding data and keys from localStorage
     localStorage.removeItem("onboardingData");
     localStorage.removeItem("onboardingComplete");
     
-    // Clear state
     setKeys(null);
     
-    // Reload the application to restart onboarding flow
     window.location.href = "/";
   };
 

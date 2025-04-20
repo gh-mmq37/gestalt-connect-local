@@ -3,9 +3,11 @@ import React from 'react';
 import { LogOut } from 'lucide-react';
 import { useNostr } from '../../hooks/useNostr';
 import { toast } from "@/components/ui/use-toast";
+import { useNavigate } from 'react-router-dom';
 
 export const LogoutButton: React.FC = () => {
   const { logout } = useNostr();
+  const navigate = useNavigate();
   
   const handleLogout = () => {
     logout();
@@ -13,6 +15,8 @@ export const LogoutButton: React.FC = () => {
       title: "Logging out",
       description: "You have been securely logged out.",
     });
+    // Navigate to the root which will redirect to onboarding
+    navigate("/", { replace: true });
   };
   
   return (

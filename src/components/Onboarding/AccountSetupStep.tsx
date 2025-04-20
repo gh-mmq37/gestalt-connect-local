@@ -5,6 +5,7 @@ import { nip19, getPublicKey, generateSecretKey } from 'nostr-tools';
 import { toast } from '@/components/ui/use-toast';
 import { useNostrExtension } from "../../hooks/useNostrExtension";
 import { DEFAULT_RELAYS, FEDIVERSE_RELAY, BLUESKY_RELAY } from "../../constants/nostrConstants";
+import { bytesToHex } from "@noble/hashes/utils";
 
 interface AccountSetupStepProps {
   onNext: (data: { accountType: string; nostrKeys: any; additionalRelays?: string[] }) => void;
@@ -39,13 +40,20 @@ export const AccountSetupStep: React.FC<AccountSetupStepProps> = ({ onNext }) =>
       const npub = nip19.npubEncode(publicKey);
       
       setGeneratedKeys({
-        privateKey: Buffer.from(secretKey).toString('hex'),
+        privateKey: bytesToHex(secretKey),
         publicKey,
         npub,
         nsec
       });
+      
+      console.log("Generated keys:", { publicKey, npub, nsec }); // Debug log
     } catch (error) {
       console.error("Error generating Nostr keys:", error);
+      toast({
+        title: "Error generating keys",
+        description: "There was a problem generating your Nostr keys. Please try again.",
+        variant: "destructive"
+      });
     }
   };
   
@@ -86,7 +94,7 @@ export const AccountSetupStep: React.FC<AccountSetupStepProps> = ({ onNext }) =>
       }
       
       setGeneratedKeys({
-        privateKey: Buffer.from(secretKey).toString('hex'),
+        privateKey: bytesToHex(secretKey),
         publicKey,
         npub,
         nsec
@@ -145,6 +153,17 @@ export const AccountSetupStep: React.FC<AccountSetupStepProps> = ({ onNext }) =>
   const handleContinue = () => {
     setIsLoading(true);
     
+    // Make sure we have keys
+    if (!generatedKeys && !extensionKeys) {
+      toast({
+        title: "No keys available", 
+        description: "Please generate keys or connect an extension before continuing",
+        variant: "destructive"
+      });
+      setIsLoading(false);
+      return;
+    }
+    
     // Collect additional relays based on bridge options
     const additionalRelays: string[] = [];
     if (bridgeOptions.fediverse && !DEFAULT_RELAYS.includes(FEDIVERSE_RELAY)) {
@@ -167,10 +186,10 @@ export const AccountSetupStep: React.FC<AccountSetupStepProps> = ({ onNext }) =>
   
   // Generate keys on initial render for simple setup
   useEffect(() => {
-    if (accountType === "simple" && !generatedKeys) {
+    if (accountType === "simple") {
       generateNostrKeys();
     }
-  }, [accountType, generatedKeys]);
+  }, [accountType]);
 
   // Use extension keys if available and selected
   useEffect(() => {
@@ -422,7 +441,7 @@ export const AccountSetupStep: React.FC<AccountSetupStepProps> = ({ onNext }) =>
       <div className="pt-4">
         <button
           onClick={handleContinue}
-          disabled={isLoading || !generatedKeys}
+          disabled={isLoading || (!generatedKeys && !extensionKeys)}
           className="w-full flex items-center justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-white bg-gestalt-purple hover:bg-gestalt-purple-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gestalt-purple transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isLoading ? "Processing..." : "Continue"}
